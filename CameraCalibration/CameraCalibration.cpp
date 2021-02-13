@@ -392,9 +392,10 @@ static void saveCameraParams(Settings& s, Size& imageSize, Mat& cameraMatrix, Ma
 
     time_t tm;
     time(&tm);
-    struct tm* t2 = localtime(&tm);
+    struct tm t2;
+    localtime_s(&t2, &tm);
     char buf[1024];
-    strftime(buf, sizeof(buf), "%c", t2);
+    strftime(buf, sizeof(buf), "%c", &t2);
 
     fs << "calibration_time" << buf;
 
