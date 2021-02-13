@@ -76,6 +76,8 @@ int main(int argc, char* argv[])
 
 	vector<vector<Point2f> > imagePoints;
 	Mat cameraMatrix, distCoeffs;
+	double rms = std::numeric_limits<double>::infinity();
+	bool atLeastOneSuccesss = false;
 	Size imageSize;
 	CalibrationState mode = s.inputType == Settings::InputType::IMAGE_LIST ? CalibrationState::CAPTURING : CalibrationState::DETECTION;
 	clock_t prevTimestamp = 0;
@@ -93,10 +95,21 @@ int main(int argc, char* argv[])
 		//-----  If no more image, or got enough, then stop calibration and show result -------------
 		if (mode == CalibrationState::CAPTURING && imagePoints.size() >= (size_t)s.nrFrames)
 		{
-			if (runCalibrationAndSave(s, imageSize, cameraMatrix, distCoeffs, imagePoints, grid_width,
-				release_object))
+			const CalibrationResult res = runCalibrationAndSave(s, imageSize, cameraMatrix, distCoeffs, imagePoints, grid_width,
+				release_object, rms, rms, !atLeastOneSuccesss);
+			if (res != CalibrationResult::FAILED)
 			{
-				mode = CalibrationState::CALIBRATED;
+				atLeastOneSuccesss = true;
+				if (res == CalibrationResult::SUCCESS)
+				{
+					// We are better
+					mode = CalibrationState::CALIBRATED;
+				}
+				else
+				{
+					// We are worse
+					mode = CalibrationState::DETECTION;
+				}
 			}
 			else
 			{
@@ -109,7 +122,8 @@ int main(int argc, char* argv[])
 			if (mode != CalibrationState::CALIBRATED && !imagePoints.empty())
 			{
 				runCalibrationAndSave(s, imageSize, cameraMatrix, distCoeffs, imagePoints, grid_width,
-					release_object);
+					release_object, rms, rms, !atLeastOneSuccesss);
+				atLeastOneSuccesss = true;
 			}
 			break;
 		}

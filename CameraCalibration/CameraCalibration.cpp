@@ -83,7 +83,7 @@ static void calcBoardCornerPositions(const cv::Size boardSize, const float squar
 
 static bool runCalibration(const Settings& s, const cv::Size& imageSize, cv::Mat& cameraMatrix, cv::Mat& distCoeffs,
 	const std::vector<std::vector<cv::Point2f> >& imagePoints, std::vector<cv::Mat>& rvecs, std::vector<cv::Mat>& tvecs,
-	std::vector<float>& reprojErrs, double& totalAvgErr, std::vector<cv::Point3f>& newObjPoints,
+	std::vector<float>& reprojErrs, double& totalAvgErr, double& rms, std::vector<cv::Point3f>& newObjPoints,
 	float grid_width, bool release_object)
 {
 	//! [fixed_aspect]
@@ -108,8 +108,6 @@ static bool runCalibration(const Settings& s, const cv::Size& imageSize, cv::Mat
 	objectPoints.resize(imagePoints.size(), objectPoints[0]);
 
 	//Find intrinsic and extrinsic camera parameters
-	// TODO: Use this to reject new image
-	double rms;
 
 	if (s.useFisheye) {
 		cv::Mat _rvecs, _tvecs;
@@ -282,8 +280,9 @@ static void saveCameraParams(const Settings& s, const cv::Size& imageSize, const
 }
 
 //! [run_and_save]
-bool runCalibrationAndSave(const Settings& s, const cv::Size imageSize, cv::Mat& cameraMatrix, cv::Mat& distCoeffs,
-	const std::vector<std::vector<cv::Point2f> >& imagePoints, const float grid_width, const bool release_object)
+CalibrationResult runCalibrationAndSave(const Settings& s, const cv::Size imageSize, cv::Mat& cameraMatrix, cv::Mat& distCoeffs,
+	const std::vector<std::vector<cv::Point2f> >& imagePoints, const float grid_width, const bool release_object,
+	double& rms, double rmsPrev, const bool saveIgnoreRms)
 {
 	std::vector<cv::Mat> rvecs, tvecs;
 	std::vector<float> reprojErrs;
@@ -291,16 +290,31 @@ bool runCalibrationAndSave(const Settings& s, const cv::Size imageSize, cv::Mat&
 	std::vector<cv::Point3f> newObjPoints;
 
 	bool ok = runCalibration(s, imageSize, cameraMatrix, distCoeffs, imagePoints, rvecs, tvecs, reprojErrs,
-		totalAvgErr, newObjPoints, grid_width, release_object);
+		totalAvgErr, rms, newObjPoints, grid_width, release_object);
 	std::cout << (ok ? "Calibration succeeded" : "Calibration failed")
 		<< ". avg re projection error = " << totalAvgErr << std::endl;
 
-	if (ok)
+	bool betterRMS = rms < rmsPrev;
+
+	if (ok && (saveIgnoreRms || betterRMS))
 	{
 		saveCameraParams(s, imageSize, cameraMatrix, distCoeffs, rvecs, tvecs, reprojErrs, imagePoints,
 			totalAvgErr, newObjPoints);
 	}
 
-	return ok;
+	if (!ok)
+	{
+		std::cout << "Failed to Converge Calibration" << std::endl;
+		return CalibrationResult::FAILED;
+	}
+
+	if (betterRMS)
+	{
+		std::cout << "Converged to a better Calibration: "<< rms << " < " << rmsPrev << std::endl;
+		return CalibrationResult::SUCCESS;
+	}
+
+	std::cout << "Converged to a worse Calibration: " << rms << " >= " << rmsPrev << std::endl;
+	return CalibrationResult::WORSE;
 }
 //! [run_and_save]
