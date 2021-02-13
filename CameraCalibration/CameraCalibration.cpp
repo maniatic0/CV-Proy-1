@@ -46,26 +46,27 @@ int main(int argc, char* argv[])
 
 	//! [file_read]
 	Settings s;
-	const string inputSettingsFile = parser.get<string>(0);
-	FileStorage fs(inputSettingsFile, FileStorage::READ); // Read the settings
-	if (!fs.isOpened())
 	{
-		cout << "Could not open the configuration file: \"" << inputSettingsFile << "\"" << endl;
-		parser.printMessage();
-		return -1;
-	}
-	fs["Settings"] >> s;
-	fs.release();                                         // close Settings file
+		const string inputSettingsFile = parser.get<string>(0);
+		FileStorage fs(inputSettingsFile, FileStorage::READ); // Read the settings
+		if (!fs.isOpened())
+		{
+			cout << "Could not open the configuration file: \"" << inputSettingsFile << "\"" << endl;
+			parser.printMessage();
+			return -1;
+		}
+		if (!Settings::readFromFile(fs, s))
+		{
+			fs.release(); // close Settings file
+			cout << "Invalid input detected. Application stopping. " << endl;
+			return -1;
+		}
+		fs.release(); // close Settings file
+	}                           
 	//! [file_read]
 
 	//FileStorage fout("settings.yml", FileStorage::WRITE); // write config as YAML
 	//fout << "Settings" << s;
-
-	if (!s.goodInput)
-	{
-		cout << "Invalid input detected. Application stopping. " << endl;
-		return -1;
-	}
 
 	int winSize = parser.get<int>("winSize");
 

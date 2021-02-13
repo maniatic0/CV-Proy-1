@@ -24,11 +24,38 @@ public:
 	// Validate Settings
 	void validate();
 
+	/// <summary>
+	/// Next Image from Settings
+	/// </summary>
+	/// <returns>Image</returns>
 	cv::Mat nextImage();
 
+	/// <summary>
+	/// Read string list from an XML/YAML file
+	/// </summary>
+	/// <param name="filename">XML/YAML Filename</param>
+	/// <param name="l">Vector to put the result, if any</param>
+	/// <returns>If the operation was successful</returns>
 	static bool readStringList(const std::string& filename, std::vector<std::string>& l);
 
+	/// <summary>
+	/// Checks if a string is a path to an XML/YAML
+	/// </summary>
+	/// <param name="filename">Tested filename string</param>
+	/// <returns>if it is a path to an XML/YAML</returns>
 	static bool isListOfImages(const std::string& filename);
+
+	/// <summary>
+	/// Read Settings from file
+	/// </summary>
+	/// <param name="fs">File to get the Settings from</param>
+	/// <param name="s">Where to put loaded Settings</param>
+	/// <returns>If the settings are valid</returns>
+	static inline bool readFromFile(const cv::FileStorage& fs, Settings& s)
+	{
+		fs["Settings"] >> s;
+		return s.goodInput;
+	}
 
 public:
 	cv::Size boardSize;          // The size of the board -> Number of items by width and height
@@ -65,6 +92,12 @@ private:
 	std::string patternToUse;
 };
 
+/// <summary>
+/// Read Settings from file node
+/// </summary>
+/// <param name="node">File node to get the Settings from</param>
+/// <param name="x">Where to put loaded Settings</param>
+/// <param name="default_value">Default Value in case there is nothing to load</param>
 static inline void read(const cv::FileNode& node, Settings& x, const Settings& default_value = Settings())
 {
 	if (node.empty())
