@@ -15,6 +15,7 @@
 using namespace cv;
 using namespace std;
 #include "Settings.h"
+
 enum { DETECTION = 0, CAPTURING = 1, CALIBRATED = 2 };
 
 bool runCalibrationAndSave(Settings& s, Size imageSize, Mat& cameraMatrix, Mat& distCoeffs,
@@ -78,13 +79,13 @@ int main(int argc, char* argv[])
     vector<vector<Point2f> > imagePoints;
     Mat cameraMatrix, distCoeffs;
     Size imageSize;
-    int mode = s.inputType == Settings::IMAGE_LIST ? CAPTURING : DETECTION;
+    int mode = s.inputType == Settings::InputType::IMAGE_LIST ? CAPTURING : DETECTION;
     clock_t prevTimestamp = 0;
     const Scalar RED(0, 0, 255), GREEN(0, 255, 0);
     const char ESC_KEY = 27;
 
     //! [get_input]
-    for (;;)
+    while (true)
     {
         Mat view;
         bool blinkOutput = false;
@@ -96,22 +97,31 @@ int main(int argc, char* argv[])
         {
             if (runCalibrationAndSave(s, imageSize, cameraMatrix, distCoeffs, imagePoints, grid_width,
                 release_object))
+            {
                 mode = CALIBRATED;
+            }
             else
+            {
                 mode = DETECTION;
+            }
         }
         if (view.empty())          // If there are no more images stop the loop
         {
             // if calibration threshold was not reached yet, calibrate now
             if (mode != CALIBRATED && !imagePoints.empty())
+            {
                 runCalibrationAndSave(s, imageSize, cameraMatrix, distCoeffs, imagePoints, grid_width,
                     release_object);
+            }
             break;
         }
         //! [get_input]
 
         imageSize = view.size();  // Format input image.
-        if (s.flipVertical)    flip(view, view, 0);
+        if (s.flipVertical)
+        {
+            flip(view, view, 0);
+        }
 
         //! [find_pattern]
         vector<Point2f> pointBuf;
@@ -127,13 +137,13 @@ int main(int argc, char* argv[])
 
         switch (s.calibrationPattern) // Find feature points on the input format
         {
-        case Settings::CHESSBOARD:
+        case Settings::Pattern::CHESSBOARD:
             found = findChessboardCorners(view, s.boardSize, pointBuf, chessBoardFlags);
             break;
-        case Settings::CIRCLES_GRID:
+        case Settings::Pattern::CIRCLES_GRID:
             found = findCirclesGrid(view, s.boardSize, pointBuf);
             break;
-        case Settings::ASYMMETRIC_CIRCLES_GRID:
+        case Settings::Pattern::ASYMMETRIC_CIRCLES_GRID:
             found = findCirclesGrid(view, s.boardSize, pointBuf, CALIB_CB_ASYMMETRIC_GRID);
             break;
         default:
@@ -145,7 +155,7 @@ int main(int argc, char* argv[])
         if (found)                // If done with success,
         {
             // improve the found corners' coordinate accuracy for chessboard
-            if (s.calibrationPattern == Settings::CHESSBOARD)
+            if (s.calibrationPattern == Settings::Pattern::CHESSBOARD)
             {
                 Mat viewGray;
                 cvtColor(view, viewGray, COLOR_BGR2GRAY);
@@ -218,7 +228,7 @@ int main(int argc, char* argv[])
 
     // -----------------------Show the undistorted image for the image list ------------------------
     //! [show_results]
-    if (s.inputType == Settings::IMAGE_LIST && s.showUndistorsed)
+    if (s.inputType == Settings::InputType::IMAGE_LIST && s.showUndistorsed)
     {
         Mat view, rview, map1, map2;
 
@@ -297,14 +307,14 @@ static void calcBoardCornerPositions(Size boardSize, float squareSize, vector<Po
 
     switch (patternType)
     {
-    case Settings::CHESSBOARD:
-    case Settings::CIRCLES_GRID:
+    case Settings::Pattern::CHESSBOARD:
+    case Settings::Pattern::CIRCLES_GRID:
         for (int i = 0; i < boardSize.height; ++i)
             for (int j = 0; j < boardSize.width; ++j)
                 corners.push_back(Point3f(j * squareSize, i * squareSize, 0));
         break;
 
-    case Settings::ASYMMETRIC_CIRCLES_GRID:
+    case Settings::Pattern::ASYMMETRIC_CIRCLES_GRID:
         for (int i = 0; i < boardSize.height; i++)
             for (int j = 0; j < boardSize.width; j++)
                 corners.push_back(Point3f((2 * j + i % 2) * squareSize, i * squareSize, 0));
@@ -463,7 +473,9 @@ static void saveCameraParams(Settings& s, Size& imageSize, Mat& cameraMatrix, Ma
             Mat t = bigmat(Range(int(i), int(i + 1)), Range(3, 6));
 
             if (needReshapeR)
+            {
                 rvecs[i].reshape(1, 1).copyTo(r);
+            }
             else
             {
                 //*.t() is MatExpr (not Mat) so we can use assignment operator
@@ -472,7 +484,9 @@ static void saveCameraParams(Settings& s, Size& imageSize, Mat& cameraMatrix, Ma
             }
 
             if (needReshapeT)
+            {
                 tvecs[i].reshape(1, 1).copyTo(t);
+            }
             else
             {
                 CV_Assert(tvecs[i].rows == 3 && tvecs[i].cols == 1);

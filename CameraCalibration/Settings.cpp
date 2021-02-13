@@ -78,7 +78,7 @@ void Settings::validate()
 
     if (input.empty())      // Check for valid input
     {
-        inputType = INVALID;
+        inputType = InputType::INVALID;
     }
     else
     {
@@ -86,37 +86,37 @@ void Settings::validate()
         {
             std::stringstream ss(input);
             ss >> cameraID;
-            inputType = CAMERA;
+            inputType = InputType::CAMERA;
         }
         else
         {
             if (isListOfImages(input) && readStringList(input, imageList))
             {
-                inputType = IMAGE_LIST;
+                inputType = InputType::IMAGE_LIST;
                 nrFrames = (nrFrames < (int)imageList.size()) ? nrFrames : (int)imageList.size();
             }
             else
             {
-                inputType = VIDEO_FILE;
+                inputType = InputType::VIDEO_FILE;
             }
         }
         switch (inputType)
         {
-        case Settings::CAMERA:
+        case InputType::CAMERA:
             inputCapture.open(cameraID);
             break;
-        case Settings::VIDEO_FILE:
+        case InputType::VIDEO_FILE:
             inputCapture.open(input);
             break;
         default:
             break;
         }
-        if (inputType != IMAGE_LIST && !inputCapture.isOpened())
+        if (inputType != InputType::IMAGE_LIST && !inputCapture.isOpened())
         {
-            inputType = INVALID;
+            inputType = InputType::INVALID;
         }
     }
-    if (inputType == INVALID)
+    if (inputType == InputType::INVALID)
     {
         std::cerr << " Input does not exist: " << input;
         goodInput = false;
@@ -142,21 +142,21 @@ void Settings::validate()
         if (calibFixPrincipalPoint)     flag |= cv::fisheye::CALIB_FIX_PRINCIPAL_POINT;
     }
 
-    calibrationPattern = NOT_EXISTING;
+    calibrationPattern = Pattern::NOT_EXISTING;
     if (!patternToUse.compare("CHESSBOARD"))
     {
-        calibrationPattern = CHESSBOARD;
+        calibrationPattern = Pattern::CHESSBOARD;
     }
     else if (!patternToUse.compare("CIRCLES_GRID"))
     {
-        calibrationPattern = CIRCLES_GRID;
+        calibrationPattern = Pattern::CIRCLES_GRID;
     }
     else if (!patternToUse.compare("ASYMMETRIC_CIRCLES_GRID"))
     {
-        calibrationPattern = ASYMMETRIC_CIRCLES_GRID;
+        calibrationPattern = Pattern::ASYMMETRIC_CIRCLES_GRID;
     }
 
-    if (calibrationPattern == NOT_EXISTING)
+    if (calibrationPattern == Pattern::NOT_EXISTING)
     {
         std::cerr << " Camera calibration mode does not exist: " << patternToUse << std::endl;
         goodInput = false;

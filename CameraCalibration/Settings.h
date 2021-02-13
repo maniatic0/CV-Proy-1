@@ -12,8 +12,8 @@ class Settings
 {
 public:
     Settings() : goodInput(false) {}
-    enum Pattern { NOT_EXISTING, CHESSBOARD, CIRCLES_GRID, ASYMMETRIC_CIRCLES_GRID };
-    enum InputType { INVALID, CAMERA, VIDEO_FILE, IMAGE_LIST };
+    enum class Pattern { NOT_EXISTING, CHESSBOARD, CIRCLES_GRID, ASYMMETRIC_CIRCLES_GRID };
+    enum class InputType { INVALID, CAMERA, VIDEO_FILE, IMAGE_LIST };
 
     //Write serialization for this class
     void write(cv::FileStorage& fs) const;
