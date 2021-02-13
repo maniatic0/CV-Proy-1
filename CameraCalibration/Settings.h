@@ -1,11 +1,8 @@
 #pragma once
 
-#include <iostream>
-#include <sstream>
 #include <string>
 
 #include <opencv2/core.hpp>
-#include <opencv2/core/utility.hpp>
 #include <opencv2/videoio.hpp>
 
 class Settings
