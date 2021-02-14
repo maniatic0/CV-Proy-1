@@ -114,13 +114,13 @@ int main(int argc, char* argv[])
 					{
 						// We are done by Number of Frames
 						mode = CalibrationState::CALIBRATED;
-						std::cout << "We are calibrated by Number of Frames!" << std::endl;
+						std::cout << "We are calibrated by Number of Frames!: " << imagePoints.size() << "/" << (size_t)s.nrFrames << std::endl;
 					}
 					else if (rms <= s.acceptableThreshold)
 					{
 						// We are done by Threshold
 						mode = CalibrationState::CALIBRATED;
-						std::cout << "We are calibrated by Threshold!" << std::endl;
+						std::cout << "We are calibrated by Threshold!: " << imagePoints.size() << "/" << (size_t)s.nrFrames << std::endl;
 					}
 					else
 					{
@@ -307,6 +307,7 @@ int main(int argc, char* argv[])
 		{
 			mode = CalibrationState::CAPTURING;
 			imagePoints.clear();
+			rms = std::numeric_limits<double>::infinity();
 		}
 		//! [await_input]
 	}
