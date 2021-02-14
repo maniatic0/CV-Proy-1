@@ -10,17 +10,23 @@ class Camera
 public:
 
 	Camera() : aMatrix(cv::Mat::zeros(3, 3, CV_64FC1)), rMatrix(cv::Mat::zeros(3, 3, CV_64FC1)),
-		tMatrix(cv::Mat::zeros(3, 1, CV_64FC1)), pMatrix(cv::Mat::zeros(3, 4, CV_64FC1)), useExtrinsicGuess(false) { }
+		tMatrix(cv::Mat::zeros(3, 1, CV_64FC1)), pMatrix(cv::Mat::zeros(3, 4, CV_64FC1)), world2View(cv::Mat::zeros(3, 4, CV_64FC1)), useExtrinsicGuess(false) { }
 
 	void estimatePose(const std::vector<cv::Point3f>& list_points3d,        // list with model 3D coordinates
 		const std::vector<cv::Point2f>& list_points2d,        // list with scene 2D coordinates
 		cv::Mat& inliers // irnliers container
 	);
 
+	inline void prepareWorld2View()
+	{
+		world2View = aMatrix * pMatrix;
+	}
+
 	inline void setIntrinsics(const cv::Mat& cameraMatrix, const cv::Mat& coeffs)
 	{
 		cameraMatrix.copyTo(aMatrix);
 		coeffs.copyTo(distCoeffs);
+		prepareWorld2View();
 	}
 
 	inline void setRot(const cv::Mat& rvec)
@@ -43,6 +49,7 @@ public:
 	{
 		set_P_matrix(rMatrix, tMatrix);
 		setUseExtrinsicGuess(true);
+		prepareWorld2View();
 	}
 
 	inline void setExtrinsics(const cv::Mat& rvec, const cv::Mat& tvec)
@@ -51,7 +58,6 @@ public:
 		setTrans(tvec);
 		preparePMat();
 	}
-
 
 	inline const cv::Mat &CameraMatrix() const
 	{
@@ -73,12 +79,32 @@ public:
 		return tMatrix;
 	}
 
+	inline cv::Point2f projectPoint(const cv::Point3f& point)
+	{
+		// 3D point vector [x y z 1]'
+		cv::Mat point3d_vec = cv::Mat(4, 1, CV_64FC1);
+		point3d_vec.at<double>(0) = point.x;
+		point3d_vec.at<double>(1) = point.y;
+		point3d_vec.at<double>(2) = point.z;
+		point3d_vec.at<double>(3) = 1;
+		// 2D point vector [u v 1]'
+		cv::Mat point2d_vec = cv::Mat(4, 1, CV_64FC1);
+		point2d_vec = world2View * point3d_vec;
+		// Normalization of [u v]'
+		cv::Point2f point2d;
+		point2d.x = point2d_vec.at<double>(0) / point2d_vec.at<double>(2);
+		point2d.y = point2d_vec.at<double>(1) / point2d_vec.at<double>(2);
+		return point2d;
+	}
+
 
 private:
 	cv::Mat aMatrix;
 	cv::Mat rMatrix;
 	cv::Mat tMatrix;
 	cv::Mat pMatrix;
+
+	cv::Mat world2View;
 
 	cv::Mat rvec_;
 	cv::Mat distCoeffs;

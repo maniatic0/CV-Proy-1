@@ -90,7 +90,10 @@ int main(int argc, char* argv[])
 	Size imageSize;
 	CalibrationState mode = s.inputType == Settings::InputType::IMAGE_LIST ? CalibrationState::CAPTURING : CalibrationState::DETECTION;
 	clock_t prevTimestamp = 0;
-	const Scalar RED(0, 0, 255), GREEN(0, 255, 0);
+	const Scalar RED(0, 0, 255), GREEN(0, 255, 0), BLUE(255, 0, 0); // BGR
+
+	Point3f xAxis(s.squareSize * 2.0f, 0, 0), yAxis(0, s.squareSize * 2.0f, 0), zAxis(0, 0, s.squareSize * 2.0f);
+
 	const char ESC_KEY = 27;
 
 	//! [get_input]
@@ -289,6 +292,17 @@ int main(int argc, char* argv[])
 		}
 
 		putText(view, msg, textOrigin, 1, 1, mode == CalibrationState::CALIBRATED ? GREEN : RED);
+
+		if (mode == CalibrationState::CALIBRATED)
+		{
+			if (found)
+			{
+				putText(view, "x", camera.projectPoint(xAxis), 1, 3, RED, 3);
+				putText(view, "y", camera.projectPoint(yAxis), 1, 3, GREEN, 3);
+				putText(view, "z", camera.projectPoint(zAxis), 1, 3, BLUE, 3);
+			}
+			
+		}
 
 		if (blinkOutput)
 		{
