@@ -7,6 +7,7 @@
 #include <string>
 #include <ctime>
 #include <cstdio>
+#include <chrono>
 
 #include <opencv2/core.hpp>
 #include <opencv2/core/utility.hpp>
@@ -78,6 +79,8 @@ int main(int argc, char* argv[])
 	std::vector<cv::Point3f> corners;
 	calcBoardCornerPositions(s.boardSize, s.squareSize, corners, s.calibrationPattern);
 
+	float grid_height = s.squareSize * (float)(s.boardSize.height - 1);
+
 	Camera camera;
 	cv::Mat inliers;
 	vector<vector<Point2f> > imagePoints;
@@ -90,18 +93,20 @@ int main(int argc, char* argv[])
 	Size imageSize;
 	CalibrationState mode = s.inputType == Settings::InputType::IMAGE_LIST ? CalibrationState::CAPTURING : CalibrationState::DETECTION;
 	clock_t prevTimestamp = 0;
-	clock_t prevFrame = 0;
-	clock_t dt;
+	std::chrono::time_point<std::chrono::high_resolution_clock> prevFrame = std::chrono::high_resolution_clock::now();
+	double dt;
 	const Scalar RED(0, 0, 255), GREEN(0, 255, 0), BLUE(255, 0, 0); // BGR
 
 	Point3f xAxis(s.squareSize * 2.0f + 2.0f, 0, 0), yAxis(0, s.squareSize * 2.0f + 2.0f, 0), zAxis(0, 0, s.squareSize * 2.0f + 2.0f);
 
 	const char ESC_KEY = 27;
 
+	double animTime = 0;
+
 	//! [get_input]
 	while (true)
 	{
-		dt = clock() - prevFrame;
+		dt = std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(std::chrono::high_resolution_clock::now() - prevFrame).count();
 
 		Mat view;
 		bool blinkOutput = false;
@@ -221,11 +226,6 @@ int main(int argc, char* argv[])
 		cv:Scalar cubeColor = Scalar(255, 0, 0);
 		int cubeThickness = 7;
 
-		vector<Point2f> cube;
-		for (auto i : points) {
-			cube.push_back(camera.projectPoint(i));
-		}
-
 		bool found;
 
 		int chessBoardFlags = CALIB_CB_ADAPTIVE_THRESH | CALIB_CB_NORMALIZE_IMAGE;
@@ -278,20 +278,46 @@ int main(int argc, char* argv[])
 			break;
 			case CalibrationState::CALIBRATED:
 			{
-				camera.estimatePose(corners, pointBuf, (double)dt, inliers);
+				camera.estimatePose(corners, pointBuf, dt, inliers);
+				
 				cv::drawFrameAxes(view, camera.CameraMatrix(), camera.DistCoeffs(), camera.RotationVec(), camera.TranslationVec(), s.squareSize * 2.0f);
-				cv::line(view, cube.at(0), cube.at(1), cubeColor, cubeThickness);
-				cv::line(view, cube.at(1), cube.at(2), cubeColor, cubeThickness);
-				cv::line(view, cube.at(2), cube.at(3), cubeColor, cubeThickness);
-				cv::line(view, cube.at(3), cube.at(0), cubeColor, cubeThickness);
-				cv::line(view, cube.at(0), cube.at(4), cubeColor, cubeThickness);
-				cv::line(view, cube.at(1), cube.at(5), cubeColor, cubeThickness);
-				cv::line(view, cube.at(2), cube.at(6), cubeColor, cubeThickness);
-				cv::line(view, cube.at(3), cube.at(7), cubeColor, cubeThickness);
-				cv::line(view, cube.at(4), cube.at(5), cubeColor, cubeThickness);
-				cv::line(view, cube.at(5), cube.at(6), cubeColor, cubeThickness);
-				cv::line(view, cube.at(6), cube.at(7), cubeColor, cubeThickness);
-				cv::line(view, cube.at(7), cube.at(4), cubeColor, cubeThickness);
+
+				{
+					// Cube Drawing
+					vector<Point2f> cube;
+					for (const auto &i : points) {
+						cube.push_back(camera.projectPoint(i));
+					}
+
+					cv::line(view, cube.at(0), cube.at(1), cubeColor, cubeThickness);
+					cv::line(view, cube.at(1), cube.at(2), cubeColor, cubeThickness);
+					cv::line(view, cube.at(2), cube.at(3), cubeColor, cubeThickness);
+					cv::line(view, cube.at(3), cube.at(0), cubeColor, cubeThickness);
+					cv::line(view, cube.at(0), cube.at(4), cubeColor, cubeThickness);
+					cv::line(view, cube.at(1), cube.at(5), cubeColor, cubeThickness);
+					cv::line(view, cube.at(2), cube.at(6), cubeColor, cubeThickness);
+					cv::line(view, cube.at(3), cube.at(7), cubeColor, cubeThickness);
+					cv::line(view, cube.at(4), cube.at(5), cubeColor, cubeThickness);
+					cv::line(view, cube.at(5), cube.at(6), cubeColor, cubeThickness);
+					cv::line(view, cube.at(6), cube.at(7), cubeColor, cubeThickness);
+					cv::line(view, cube.at(7), cube.at(4), cubeColor, cubeThickness);
+				}
+
+				{
+					// Animation
+					animTime += dt;
+					for (size_t i = 0; i < corners.size(); i++)
+					{
+						const float u = corners[i].x / grid_width;
+						const float v = corners[i].y / grid_height;
+						const float k = (float)std::sin(CV_PI * (u + v + animTime / 2.0f)) / 2.0f + 0.5f;
+						const float k2 = (float)std::cos(CV_PI * (u + v + animTime / 10.0f)) / 2.0f + 0.5f;
+						cv::Point3f newPos(corners[i].x, corners[i].y, corners[i].z + s.squareSize * k + s.squareSize * 2.0f * k2 );
+						cv::Scalar color(255.0f * (k / 2.0f + 0.5), 255.0f * v, 255.0f * u);
+						cv::circle(view, camera.projectPoint(newPos), 2, color, 2);
+					}
+				}
+				
 			}
 			break;
 			default:
@@ -326,7 +352,7 @@ int main(int argc, char* argv[])
 
 		putText(view, msg, textOrigin, 1, 1, mode == CalibrationState::CALIBRATED ? GREEN : RED);
 
-		string msg2 = format("Frame %lld ms", dt);
+		string msg2 = format("Frame %llf ms", dt);
 		Point secsOrigin(view.cols - 2 * textSize.width - 10, view.rows - 4 * baseLine - 10);
 		putText(view, msg2, secsOrigin, 1, 1, mode == CalibrationState::CALIBRATED ? GREEN : RED);
 
@@ -385,7 +411,7 @@ int main(int argc, char* argv[])
 			rms = std::numeric_limits<double>::infinity();
 		}
 		//! [await_input]
-		prevFrame = clock();
+		prevFrame = std::chrono::high_resolution_clock::now();
 	}
 
 	// -----------------------Show the undistorted image for the image list ------------------------
