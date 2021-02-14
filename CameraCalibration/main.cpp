@@ -205,6 +205,21 @@ int main(int argc, char* argv[])
 		//! [find_pattern]
 		vector<Point2f> pointBuf;
 
+		vector<Point3d> points;
+		points.push_back(Point3d(0, 0, 0));
+		points.push_back(Point3d(0, 50, 0));
+		points.push_back(Point3d(0, 50, 50));
+		points.push_back(Point3d(0, 0, 50));
+		points.push_back(Point3d(50, 0, 0));
+		points.push_back(Point3d(50, 50, 0));
+		points.push_back(Point3d(50, 50, 50)); 
+		points.push_back(Point3d(50, 0, 50));
+
+		vector<Point2f> cube;
+		for (auto i:points) {
+			cube.push_back(camera.projectPoint(i));
+		}
+		
 		bool found;
 
 		int chessBoardFlags = CALIB_CB_ADAPTIVE_THRESH | CALIB_CB_NORMALIZE_IMAGE;
@@ -259,6 +274,18 @@ int main(int argc, char* argv[])
 			{
 				camera.estimatePose(corners, pointBuf, inliers);
 				cv::drawFrameAxes(view, camera.CameraMatrix(), camera.DistCoeffs(), camera.RotationVec(), camera.TranslationVec(), s.squareSize * 2.0f);
+				cv::line(view, cube.at(0), cube.at(1), RED, 10);
+				cv::line(view, cube.at(1), cube.at(2), RED, 10);
+				cv::line(view, cube.at(2), cube.at(3), RED, 10);
+				cv::line(view, cube.at(3), cube.at(0), RED, 10);
+				cv::line(view, cube.at(0), cube.at(4), RED, 10);
+				cv::line(view, cube.at(1), cube.at(5), RED, 10);
+				cv::line(view, cube.at(2), cube.at(6), RED, 10);
+				cv::line(view, cube.at(3), cube.at(7), RED, 10);
+				cv::line(view, cube.at(4), cube.at(5), RED, 10);
+				cv::line(view, cube.at(5), cube.at(6), RED, 10);
+				cv::line(view, cube.at(6), cube.at(7), RED, 10);
+				cv::line(view, cube.at(7), cube.at(4), RED, 10);
 			}
 			break;
 			default:

@@ -87,7 +87,7 @@ public:
 		point3d_vec.at<double>(1) = point.y;
 		point3d_vec.at<double>(2) = point.z;
 		point3d_vec.at<double>(3) = 1;
-		// 2D point vector [u v 1]'
+		// 2D point		vector [u v 1]'
 		cv::Mat point2d_vec = cv::Mat(4, 1, CV_64FC1);
 		point2d_vec = world2View * point3d_vec;
 		// Normalization of [u v]'
