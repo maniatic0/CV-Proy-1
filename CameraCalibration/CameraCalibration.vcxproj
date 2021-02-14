@@ -153,11 +153,13 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Camera.cpp" />
     <ClCompile Include="CameraCalibration.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Settings.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Camera.h" />
     <ClInclude Include="CameraCalibration.h" />
     <ClInclude Include="Settings.h" />
   </ItemGroup>

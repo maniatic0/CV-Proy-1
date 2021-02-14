@@ -43,7 +43,7 @@ static double computeReprojectionErrors(const std::vector<std::vector<cv::Point3
 //! [compute_errors]
 
 //! [board_corners]
-static void calcBoardCornerPositions(const cv::Size boardSize, const float squareSize, std::vector<cv::Point3f>& corners,
+void calcBoardCornerPositions(const cv::Size boardSize, const float squareSize, std::vector<cv::Point3f>& corners,
 	const Settings::Pattern patternType)
 {
 	corners.clear();
@@ -82,7 +82,8 @@ static void calcBoardCornerPositions(const cv::Size boardSize, const float squar
 //! [board_corners]
 
 static bool runCalibration(const Settings& s, const cv::Size& imageSize, cv::Mat& cameraMatrix, cv::Mat& distCoeffs,
-	const std::vector<std::vector<cv::Point2f> >& imagePoints, std::vector<cv::Mat>& rvecs, std::vector<cv::Mat>& tvecs,
+	const std::vector<std::vector<cv::Point2f> >& imagePoints, const std::vector<cv::Point3f>& corners,
+	std::vector<cv::Mat>& rvecs, std::vector<cv::Mat>& tvecs,
 	std::vector<float>& reprojErrs, double& totalAvgErr, double& rms, std::vector<cv::Point3f>& newObjPoints,
 	float grid_width, bool release_object)
 {
@@ -101,8 +102,8 @@ static bool runCalibration(const Settings& s, const cv::Size& imageSize, cv::Mat
 	}
 
 	std::vector<std::vector<cv::Point3f> > objectPoints(1);
-	calcBoardCornerPositions(s.boardSize, s.squareSize, objectPoints[0], s.calibrationPattern);
-	objectPoints[0][s.boardSize.width - 1].x = objectPoints[0][0].x + grid_width;
+	objectPoints[0] = corners;
+	objectPoints[0][(size_t)(s.boardSize.width) - 1].x = objectPoints[0][0].x + grid_width;
 	newObjPoints = objectPoints[0];
 
 	objectPoints.resize(imagePoints.size(), objectPoints[0]);
@@ -135,8 +136,8 @@ static bool runCalibration(const Settings& s, const cv::Size& imageSize, cv::Mat
 	if (release_object) {
 		std::cout << "New board corners: " << std::endl;
 		std::cout << newObjPoints[0] << std::endl;
-		std::cout << newObjPoints[s.boardSize.width - 1] << std::endl;
-		std::cout << newObjPoints[s.boardSize.width * (s.boardSize.height - 1)] << std::endl;
+		std::cout << newObjPoints[(size_t)(s.boardSize.width) - 1] << std::endl;
+		std::cout << newObjPoints[(size_t)(s.boardSize.width) * ((size_t)(s.boardSize.height) - 1)] << std::endl;
 		std::cout << newObjPoints.back() << std::endl;
 	}
 
@@ -281,15 +282,17 @@ static void saveCameraParams(const Settings& s, const cv::Size& imageSize, const
 
 //! [run_and_save]
 CalibrationResult runCalibrationAndSave(const Settings& s, const cv::Size imageSize, cv::Mat& cameraMatrix, cv::Mat& distCoeffs,
-	const std::vector<std::vector<cv::Point2f> >& imagePoints, const float grid_width, const bool release_object,
+	cv::Mat& rvec, cv::Mat& tvec,
+	const std::vector<std::vector<cv::Point2f> >& imagePoints, const std::vector<cv::Point3f>& corners, const float grid_width, const bool release_object,
 	double& rms, double rmsPrev, const bool saveIgnoreRms)
 {
-	std::vector<cv::Mat> rvecs, tvecs;
+	std::vector<cv::Mat> rvecs;
+	std::vector<cv::Mat> tvecs;
 	std::vector<float> reprojErrs;
 	double totalAvgErr = 0;
 	std::vector<cv::Point3f> newObjPoints;
 
-	bool ok = runCalibration(s, imageSize, cameraMatrix, distCoeffs, imagePoints, rvecs, tvecs, reprojErrs,
+	bool ok = runCalibration(s, imageSize, cameraMatrix, distCoeffs, imagePoints, corners, rvecs, tvecs, reprojErrs,
 		totalAvgErr, rms, newObjPoints, grid_width, release_object);
 	std::cout << (ok ? "Calibration succeeded" : "Calibration failed")
 		<< ". avg re projection error = " << totalAvgErr << std::endl;
@@ -308,9 +311,15 @@ CalibrationResult runCalibrationAndSave(const Settings& s, const cv::Size imageS
 		return CalibrationResult::FAILED;
 	}
 
+	if (rvecs.size() > 0)
+	{
+		rvecs[rvecs.size() - 1].copyTo(rvec);
+		tvecs[tvecs.size() - 1].copyTo(tvec);
+	}	
+
 	if (betterRMS)
 	{
-		std::cout << "Converged to a better Calibration: "<< rms << " < " << rmsPrev << std::endl;
+		std::cout << "Converged to a better Calibration: " << rms << " < " << rmsPrev << std::endl;
 		return CalibrationResult::SUCCESS;
 	}
 	else if (saveIgnoreRms)

@@ -1,5 +1,6 @@
 #include "CameraCalibration.h"
 #include "Settings.h"
+#include "Camera.h"
 
 #include <iostream>
 #include <sstream>
@@ -74,9 +75,14 @@ int main(int argc, char* argv[])
 		release_object = true;
 	}
 
+	std::vector<cv::Point3f> corners;
+	calcBoardCornerPositions(s.boardSize, s.squareSize, corners, s.calibrationPattern);
+
+	Camera camera;
+	cv::Mat inliers;
 	vector<vector<Point2f> > imagePoints;
-	Mat cameraMatrix, distCoeffs;
 	Mat cameraMatrixTemp, distCoeffsTemp;
+	Mat rvecTemp, tvecTemp;
 	double rms = std::numeric_limits<double>::infinity();
 	double rmsTemp;
 	bool atLeastOneSuccesss = false;
@@ -98,7 +104,7 @@ int main(int argc, char* argv[])
 		//-----  If no more image, or got enough, then try to calibrate and show result -------------
 		if (mode == CalibrationState::CAPTURING && imagePoints.size() >= 1 && preImagePointsSize < imagePoints.size())
 		{
-			const CalibrationResult res = runCalibrationAndSave(s, imageSize, cameraMatrixTemp, distCoeffsTemp, imagePoints, grid_width,
+			const CalibrationResult res = runCalibrationAndSave(s, imageSize, cameraMatrixTemp, distCoeffsTemp, rvecTemp, tvecTemp, imagePoints, corners, grid_width,
 				release_object, rmsTemp, rms, !atLeastOneSuccesss);
 			if (res != CalibrationResult::FAILED)
 			{
@@ -107,8 +113,9 @@ int main(int argc, char* argv[])
 				{
 					// We are better
 					rms = rmsTemp;
-					cameraMatrixTemp.copyTo(cameraMatrix);
-					distCoeffsTemp.copyTo(distCoeffs);
+					camera.setIntrinsics(cameraMatrixTemp, distCoeffsTemp);
+					camera.setExtrinsics(rvecTemp, tvecTemp);
+
 
 					if (imagePoints.size() >= (size_t)s.nrFrames)
 					{
@@ -148,7 +155,7 @@ int main(int argc, char* argv[])
 			// if calibration threshold was not reached yet, calibrate now
 			if (!imagePoints.empty())
 			{
-				const CalibrationResult res = runCalibrationAndSave(s, imageSize, cameraMatrixTemp, distCoeffsTemp, imagePoints, grid_width,
+				const CalibrationResult res = runCalibrationAndSave(s, imageSize, cameraMatrixTemp, distCoeffsTemp, rvecTemp, tvecTemp, imagePoints, corners, grid_width,
 					release_object, rmsTemp, rms, !atLeastOneSuccesss);
 				if (res != CalibrationResult::FAILED)
 				{
@@ -157,8 +164,8 @@ int main(int argc, char* argv[])
 					{
 						// We are better
 						rms = rmsTemp;
-						cameraMatrixTemp.copyTo(cameraMatrix);
-						distCoeffsTemp.copyTo(distCoeffs);
+						camera.setIntrinsics(cameraMatrixTemp, distCoeffsTemp);
+						camera.setExtrinsics(rvecTemp, tvecTemp);
 
 						if (imagePoints.size() >= (size_t)s.nrFrames)
 						{
@@ -232,13 +239,29 @@ int main(int argc, char* argv[])
 					Size(-1, -1), TermCriteria(TermCriteria::EPS + TermCriteria::COUNT, 30, 0.0001));
 			}
 
-			if (mode == CalibrationState::CAPTURING &&  // For camera only take new samples after delay time
-				(!s.inputCapture.isOpened() || clock() - prevTimestamp > s.delay * 1e-3 * CLOCKS_PER_SEC))
+			switch (mode)
 			{
-				imagePoints.push_back(pointBuf);
-				prevTimestamp = clock();
-				blinkOutput = s.inputCapture.isOpened();
+			case CalibrationState::CAPTURING:
+			{
+				if (!s.inputCapture.isOpened() || clock() - prevTimestamp > (clock_t)s.delay * 1e-3 * CLOCKS_PER_SEC)
+				{
+					// For camera only take new samples after delay time
+					imagePoints.push_back(pointBuf);
+					prevTimestamp = clock();
+					blinkOutput = s.inputCapture.isOpened();
+				}
 			}
+			break;
+			case CalibrationState::CALIBRATED:
+			{
+				camera.estimatePose(corners, pointBuf, inliers);
+			}
+			break;
+			default:
+				break;
+			}
+
+
 
 			// Draw the corners.
 			drawChessboardCorners(view, s.boardSize, Mat(pointBuf), found);
@@ -279,11 +302,11 @@ int main(int argc, char* argv[])
 			Mat temp = view.clone();
 			if (s.useFisheye)
 			{
-				cv::fisheye::undistortImage(temp, view, cameraMatrix, distCoeffs);
+				cv::fisheye::undistortImage(temp, view, camera.CameraMatrix(), camera.DistCoeffs());
 			}
 			else
 			{
-				undistort(temp, view, cameraMatrix, distCoeffs);
+				undistort(temp, view, camera.CameraMatrix(), camera.DistCoeffs());
 			}
 
 		}
@@ -321,16 +344,16 @@ int main(int argc, char* argv[])
 		if (s.useFisheye)
 		{
 			Mat newCamMat;
-			fisheye::estimateNewCameraMatrixForUndistortRectify(cameraMatrix, distCoeffs, imageSize,
+			fisheye::estimateNewCameraMatrixForUndistortRectify(camera.CameraMatrix(), camera.DistCoeffs(), imageSize,
 				Matx33d::eye(), newCamMat, 1);
-			fisheye::initUndistortRectifyMap(cameraMatrix, distCoeffs, Matx33d::eye(), newCamMat, imageSize,
+			fisheye::initUndistortRectifyMap(camera.CameraMatrix(), camera.DistCoeffs(), Matx33d::eye(), newCamMat, imageSize,
 				CV_16SC2, map1, map2);
 		}
 		else
 		{
 			initUndistortRectifyMap(
-				cameraMatrix, distCoeffs, Mat(),
-				getOptimalNewCameraMatrix(cameraMatrix, distCoeffs, imageSize, 1, imageSize, 0), imageSize,
+				camera.CameraMatrix(), camera.DistCoeffs(), Mat(),
+				getOptimalNewCameraMatrix(camera.CameraMatrix(), camera.DistCoeffs(), imageSize, 1, imageSize, 0), imageSize,
 				CV_16SC2, map1, map2);
 		}
 
