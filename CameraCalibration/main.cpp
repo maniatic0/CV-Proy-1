@@ -92,7 +92,7 @@ int main(int argc, char* argv[])
 	clock_t prevTimestamp = 0;
 	const Scalar RED(0, 0, 255), GREEN(0, 255, 0), BLUE(255, 0, 0); // BGR
 
-	Point3f xAxis(s.squareSize * 2.0f, 0, 0), yAxis(0, s.squareSize * 2.0f, 0), zAxis(0, 0, s.squareSize * 2.0f);
+	Point3f xAxis(s.squareSize * 2.0f + 2.0f, 0, 0), yAxis(0, s.squareSize * 2.0f + 2.0f, 0), zAxis(0, 0, s.squareSize * 2.0f + 2.0f);
 
 	const char ESC_KEY = 27;
 
