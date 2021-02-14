@@ -63,6 +63,16 @@ public:
 		return distCoeffs;
 	}
 
+	inline const cv::Mat& RotationVec() const
+	{
+		return rvec_;
+	}
+
+	inline const cv::Mat& TranslationVec() const
+	{
+		return tMatrix;
+	}
+
 
 private:
 	cv::Mat aMatrix;

@@ -255,6 +255,7 @@ int main(int argc, char* argv[])
 			case CalibrationState::CALIBRATED:
 			{
 				camera.estimatePose(corners, pointBuf, inliers);
+				cv::drawFrameAxes(view, camera.CameraMatrix(), camera.DistCoeffs(), camera.RotationVec(), camera.TranslationVec(), s.squareSize * 2.0f);
 			}
 			break;
 			default:
