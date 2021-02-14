@@ -67,8 +67,8 @@ int main(int argc, char* argv[])
 
 	int winSize = parser.get<int>("winSize");
 
-	float grid_width = s.squareSize * (s.boardSize.width - 1);
-	bool release_object = false;
+	float grid_width = s.gridWidth;
+	bool release_object = s.releaseObject;
 	if (parser.has("d")) {
 		grid_width = parser.get<float>("d");
 		release_object = true;

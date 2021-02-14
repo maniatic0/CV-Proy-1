@@ -7,11 +7,19 @@
 
 void Settings::write(cv::FileStorage& fs) const
 {
+
 	fs << "{"
 		<< "BoardSize_Width" << boardSize.width
 		<< "BoardSize_Height" << boardSize.height
-		<< "Square_Size" << squareSize
-		<< "Calibrate_Pattern" << patternToUse
+		<< "Square_Size" << squareSize;
+
+	if (releaseObject)
+	{
+		fs << "Grid_Width" << gridWidth;
+	}
+
+
+	fs << "Calibrate_Pattern" << patternToUse
 		<< "Calibrate_NrOfFrameToUse" << nrFrames
 		<< "Acceptable_Threshold" << acceptableThreshold
 		<< "Calibrate_FixAspectRatio" << aspectRatio
@@ -37,6 +45,17 @@ void Settings::read(const cv::FileNode& node)
 	node["BoardSize_Height"] >> boardSize.height;
 	node["Calibrate_Pattern"] >> patternToUse;
 	node["Square_Size"] >> squareSize;
+	const cv::FileNode gridWidthNode = node["Grid_Width"];
+	if (!gridWidthNode.empty())
+	{
+		gridWidthNode >> gridWidth;
+		releaseObject = true;
+	}
+	else
+	{
+		gridWidth = squareSize * (float)(boardSize.width - 1);
+		releaseObject = false;
+	}
 	node["Calibrate_NrOfFrameToUse"] >> nrFrames;
 	node["Acceptable_Threshold"] >> acceptableThreshold;
 	node["Calibrate_FixAspectRatio"] >> aspectRatio;
