@@ -272,7 +272,8 @@ int main(int argc, char* argv[])
 			break;
 			case CalibrationState::CALIBRATED:
 			{
-				camera.estimatePose(corners, pointBuf, inliers);
+				camera.estimatePose(corners, pointBuf, (double)(clock() - prevTimestamp), inliers);
+				prevTimestamp = clock();
 				cv::drawFrameAxes(view, camera.CameraMatrix(), camera.DistCoeffs(), camera.RotationVec(), camera.TranslationVec(), s.squareSize * 2.0f);
 				cv::line(view, cube.at(0), cube.at(1), RED, 10);
 				cv::line(view, cube.at(1), cube.at(2), RED, 10);
