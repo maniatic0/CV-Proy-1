@@ -90,6 +90,8 @@ int main(int argc, char* argv[])
 	Size imageSize;
 	CalibrationState mode = s.inputType == Settings::InputType::IMAGE_LIST ? CalibrationState::CAPTURING : CalibrationState::DETECTION;
 	clock_t prevTimestamp = 0;
+	clock_t prevFrame = 0;
+	clock_t dt;
 	const Scalar RED(0, 0, 255), GREEN(0, 255, 0), BLUE(255, 0, 0); // BGR
 
 	Point3f xAxis(s.squareSize * 2.0f + 2.0f, 0, 0), yAxis(0, s.squareSize * 2.0f + 2.0f, 0), zAxis(0, 0, s.squareSize * 2.0f + 2.0f);
@@ -99,6 +101,8 @@ int main(int argc, char* argv[])
 	//! [get_input]
 	while (true)
 	{
+		dt = clock() - prevFrame;
+
 		Mat view;
 		bool blinkOutput = false;
 
@@ -212,14 +216,14 @@ int main(int argc, char* argv[])
 		points.push_back(Point3d(0, 0, 50));
 		points.push_back(Point3d(50, 0, 0));
 		points.push_back(Point3d(50, 50, 0));
-		points.push_back(Point3d(50, 50, 50)); 
+		points.push_back(Point3d(50, 50, 50));
 		points.push_back(Point3d(50, 0, 50));
 
 		vector<Point2f> cube;
-		for (auto i:points) {
+		for (auto i : points) {
 			cube.push_back(camera.projectPoint(i));
 		}
-		
+
 		bool found;
 
 		int chessBoardFlags = CALIB_CB_ADAPTIVE_THRESH | CALIB_CB_NORMALIZE_IMAGE;
@@ -265,15 +269,14 @@ int main(int argc, char* argv[])
 				{
 					// For camera only take new samples after delay time
 					imagePoints.push_back(pointBuf);
-					prevTimestamp = clock();
+					prevTimestamp= clock();
 					blinkOutput = s.inputCapture.isOpened();
 				}
 			}
 			break;
 			case CalibrationState::CALIBRATED:
 			{
-				camera.estimatePose(corners, pointBuf, (double)(clock() - prevTimestamp), inliers);
-				prevTimestamp = clock();
+				camera.estimatePose(corners, pointBuf, (double)dt, inliers);
 				cv::drawFrameAxes(view, camera.CameraMatrix(), camera.DistCoeffs(), camera.RotationVec(), camera.TranslationVec(), s.squareSize * 2.0f);
 				cv::line(view, cube.at(0), cube.at(1), RED, 10);
 				cv::line(view, cube.at(1), cube.at(2), RED, 10);
@@ -321,6 +324,10 @@ int main(int argc, char* argv[])
 
 		putText(view, msg, textOrigin, 1, 1, mode == CalibrationState::CALIBRATED ? GREEN : RED);
 
+		string msg2 = format("Frame %lld ms", dt);
+		Point secsOrigin(view.cols - 2 * textSize.width - 10, view.rows - 4 * baseLine - 10);
+		putText(view, msg2, secsOrigin, 1, 1, mode == CalibrationState::CALIBRATED ? GREEN : RED);
+
 		if (mode == CalibrationState::CALIBRATED)
 		{
 			if (found)
@@ -329,7 +336,7 @@ int main(int argc, char* argv[])
 				putText(view, "y", camera.projectPoint(yAxis), 1, 3, GREEN, 3);
 				putText(view, "z", camera.projectPoint(zAxis), 1, 3, BLUE, 3);
 			}
-			
+
 		}
 
 		if (blinkOutput)
@@ -376,6 +383,7 @@ int main(int argc, char* argv[])
 			rms = std::numeric_limits<double>::infinity();
 		}
 		//! [await_input]
+		prevFrame = clock();
 	}
 
 	// -----------------------Show the undistorted image for the image list ------------------------
