@@ -13,6 +13,7 @@ void Settings::write(cv::FileStorage& fs) const
 		<< "Square_Size" << squareSize
 		<< "Calibrate_Pattern" << patternToUse
 		<< "Calibrate_NrOfFrameToUse" << nrFrames
+		<< "Acceptable_Threshold" << acceptableThreshold
 		<< "Calibrate_FixAspectRatio" << aspectRatio
 		<< "Calibrate_AssumeZeroTangentialDistortion" << calibZeroTangentDist
 		<< "Calibrate_FixPrincipalPointAtTheCenter" << calibFixPrincipalPoint
@@ -37,6 +38,7 @@ void Settings::read(const cv::FileNode& node)
 	node["Calibrate_Pattern"] >> patternToUse;
 	node["Square_Size"] >> squareSize;
 	node["Calibrate_NrOfFrameToUse"] >> nrFrames;
+	node["Acceptable_Threshold"] >> acceptableThreshold;
 	node["Calibrate_FixAspectRatio"] >> aspectRatio;
 	node["Write_DetectedFeaturePoints"] >> writePoints;
 	node["Write_extrinsicParameters"] >> writeExtrinsics;

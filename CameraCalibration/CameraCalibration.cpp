@@ -313,6 +313,11 @@ CalibrationResult runCalibrationAndSave(const Settings& s, const cv::Size imageS
 		std::cout << "Converged to a better Calibration: "<< rms << " < " << rmsPrev << std::endl;
 		return CalibrationResult::SUCCESS;
 	}
+	else if (saveIgnoreRms)
+	{
+		std::cout << "Converged to a worse Calibration but we forced to accept it: " << rms << " >= " << rmsPrev << std::endl;
+		return CalibrationResult::SUCCESS;
+	}
 
 	std::cout << "Converged to a worse Calibration: " << rms << " >= " << rmsPrev << std::endl;
 	return CalibrationResult::WORSE;

@@ -76,8 +76,11 @@ int main(int argc, char* argv[])
 
 	vector<vector<Point2f> > imagePoints;
 	Mat cameraMatrix, distCoeffs;
+	Mat cameraMatrixTemp, distCoeffsTemp;
 	double rms = std::numeric_limits<double>::infinity();
+	double rmsTemp;
 	bool atLeastOneSuccesss = false;
+	size_t preImagePointsSize = imagePoints.size();
 	Size imageSize;
 	CalibrationState mode = s.inputType == Settings::InputType::IMAGE_LIST ? CalibrationState::CAPTURING : CalibrationState::DETECTION;
 	clock_t prevTimestamp = 0;
@@ -92,38 +95,92 @@ int main(int argc, char* argv[])
 
 		view = s.nextImage();
 
-		//-----  If no more image, or got enough, then stop calibration and show result -------------
-		if (mode == CalibrationState::CAPTURING && imagePoints.size() >= (size_t)s.nrFrames)
+		//-----  If no more image, or got enough, then try to calibrate and show result -------------
+		if (mode == CalibrationState::CAPTURING && imagePoints.size() >= 1 && preImagePointsSize < imagePoints.size())
 		{
-			const CalibrationResult res = runCalibrationAndSave(s, imageSize, cameraMatrix, distCoeffs, imagePoints, grid_width,
-				release_object, rms, rms, !atLeastOneSuccesss);
+			const CalibrationResult res = runCalibrationAndSave(s, imageSize, cameraMatrixTemp, distCoeffsTemp, imagePoints, grid_width,
+				release_object, rmsTemp, rms, !atLeastOneSuccesss);
 			if (res != CalibrationResult::FAILED)
 			{
 				atLeastOneSuccesss = true;
 				if (res == CalibrationResult::SUCCESS)
 				{
 					// We are better
-					mode = CalibrationState::CALIBRATED;
+					rms = rmsTemp;
+					cameraMatrixTemp.copyTo(cameraMatrix);
+					distCoeffsTemp.copyTo(distCoeffs);
+
+					if (imagePoints.size() >= (size_t)s.nrFrames)
+					{
+						// We are done by Number of Frames
+						mode = CalibrationState::CALIBRATED;
+						std::cout << "We are calibrated by Number of Frames!" << std::endl;
+					}
+					else if (rms <= s.acceptableThreshold)
+					{
+						// We are done by Threshold
+						mode = CalibrationState::CALIBRATED;
+						std::cout << "We are calibrated by Threshold!" << std::endl;
+					}
+					else
+					{
+						std::cout << "We improve the calibration!: " << imagePoints.size() << "/" << (size_t)s.nrFrames << std::endl;
+					}
 				}
 				else
 				{
 					// We are worse
-					mode = CalibrationState::DETECTION;
+
+					// Pop last image
+					imagePoints.pop_back();
+					std::cout << "We are not calibrated: " << imagePoints.size() << "/" << (size_t)s.nrFrames << std::endl;
 				}
 			}
 			else
 			{
-				mode = CalibrationState::DETECTION;
+				// mode = CalibrationState::DETECTION; // ?
+				std::cout << "We failed to calibrate!" << std::endl;
 			}
 		}
+		preImagePointsSize = imagePoints.size();
 		if (view.empty())          // If there are no more images stop the loop
 		{
 			// if calibration threshold was not reached yet, calibrate now
-			if (mode != CalibrationState::CALIBRATED && !imagePoints.empty())
+			if (!imagePoints.empty())
 			{
-				runCalibrationAndSave(s, imageSize, cameraMatrix, distCoeffs, imagePoints, grid_width,
-					release_object, rms, rms, !atLeastOneSuccesss);
-				atLeastOneSuccesss = true;
+				const CalibrationResult res = runCalibrationAndSave(s, imageSize, cameraMatrixTemp, distCoeffsTemp, imagePoints, grid_width,
+					release_object, rmsTemp, rms, !atLeastOneSuccesss);
+				if (res != CalibrationResult::FAILED)
+				{
+					atLeastOneSuccesss = true;
+					if (res == CalibrationResult::SUCCESS)
+					{
+						// We are better
+						rms = rmsTemp;
+						cameraMatrixTemp.copyTo(cameraMatrix);
+						distCoeffsTemp.copyTo(distCoeffs);
+
+						if (imagePoints.size() >= (size_t)s.nrFrames)
+						{
+							// We are done
+							mode = CalibrationState::CALIBRATED;
+							std::cout << "We are calibrated!" << std::endl;
+						}
+						else
+						{
+							std::cout << "We improve the calibration!: " << imagePoints.size() << "/" << (size_t)s.nrFrames << std::endl;
+						}
+					}
+					else
+					{
+						// We are worse
+						std::cout << "We are not calibrated: " << imagePoints.size() << "/" << (size_t)s.nrFrames << std::endl;
+					}
+				}
+				else
+				{
+					std::cout << "We failed to calibrate!" << std::endl;
+				}
 			}
 			break;
 		}
@@ -203,7 +260,7 @@ int main(int argc, char* argv[])
 			}
 			else
 			{
-				msg = format("%d/%d", (int)imagePoints.size(), s.nrFrames);
+				msg = format("%d/%d Dist", (int)imagePoints.size(), s.nrFrames);
 			}
 		}
 

@@ -61,6 +61,7 @@ public:
 	int nrFrames;                // The number of frames to use from the input for calibration
 	float aspectRatio;           // The aspect ratio
 	int delay;                   // In case of a video input
+	float acceptableThreshold;	 // Stop when the RMS reaches below this point
 	bool writePoints;            // Write detected feature points
 	bool writeExtrinsics;        // Write extrinsic parameters
 	bool writeGrid;              // Write refined 3D target grid points
