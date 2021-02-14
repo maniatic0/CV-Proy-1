@@ -218,6 +218,8 @@ int main(int argc, char* argv[])
 		points.push_back(Point3d(50, 50, 0));
 		points.push_back(Point3d(50, 50, 50));
 		points.push_back(Point3d(50, 0, 50));
+		cv:Scalar cubeColor = Scalar(255, 0, 0);
+		int cubeThickness = 7;
 
 		vector<Point2f> cube;
 		for (auto i : points) {
@@ -278,18 +280,18 @@ int main(int argc, char* argv[])
 			{
 				camera.estimatePose(corners, pointBuf, (double)dt, inliers);
 				cv::drawFrameAxes(view, camera.CameraMatrix(), camera.DistCoeffs(), camera.RotationVec(), camera.TranslationVec(), s.squareSize * 2.0f);
-				cv::line(view, cube.at(0), cube.at(1), RED, 10);
-				cv::line(view, cube.at(1), cube.at(2), RED, 10);
-				cv::line(view, cube.at(2), cube.at(3), RED, 10);
-				cv::line(view, cube.at(3), cube.at(0), RED, 10);
-				cv::line(view, cube.at(0), cube.at(4), RED, 10);
-				cv::line(view, cube.at(1), cube.at(5), RED, 10);
-				cv::line(view, cube.at(2), cube.at(6), RED, 10);
-				cv::line(view, cube.at(3), cube.at(7), RED, 10);
-				cv::line(view, cube.at(4), cube.at(5), RED, 10);
-				cv::line(view, cube.at(5), cube.at(6), RED, 10);
-				cv::line(view, cube.at(6), cube.at(7), RED, 10);
-				cv::line(view, cube.at(7), cube.at(4), RED, 10);
+				cv::line(view, cube.at(0), cube.at(1), cubeColor, cubeThickness);
+				cv::line(view, cube.at(1), cube.at(2), cubeColor, cubeThickness);
+				cv::line(view, cube.at(2), cube.at(3), cubeColor, cubeThickness);
+				cv::line(view, cube.at(3), cube.at(0), cubeColor, cubeThickness);
+				cv::line(view, cube.at(0), cube.at(4), cubeColor, cubeThickness);
+				cv::line(view, cube.at(1), cube.at(5), cubeColor, cubeThickness);
+				cv::line(view, cube.at(2), cube.at(6), cubeColor, cubeThickness);
+				cv::line(view, cube.at(3), cube.at(7), cubeColor, cubeThickness);
+				cv::line(view, cube.at(4), cube.at(5), cubeColor, cubeThickness);
+				cv::line(view, cube.at(5), cube.at(6), cubeColor, cubeThickness);
+				cv::line(view, cube.at(6), cube.at(7), cubeColor, cubeThickness);
+				cv::line(view, cube.at(7), cube.at(4), cubeColor, cubeThickness);
 			}
 			break;
 			default:
