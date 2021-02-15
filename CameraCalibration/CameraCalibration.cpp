@@ -28,9 +28,9 @@ static double computeReprojectionErrors(const std::vector<std::vector<cv::Point3
 		}
 		else
 		{
-			projectPoints(objectPoints[i], rvecs[i], tvecs[i], cameraMatrix, distCoeffs, imagePoints2);
+			cv::projectPoints(objectPoints[i], rvecs[i], tvecs[i], cameraMatrix, distCoeffs, imagePoints2);
 		}
-		err = norm(imagePoints[i], imagePoints2, cv::NORM_L2);
+		err = cv::norm(imagePoints[i], imagePoints2, cv::NORM_L2);
 
 		size_t n = objectPoints[i].size();
 		perViewErrors[i] = (float)std::sqrt(err * err / n);

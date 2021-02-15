@@ -94,14 +94,37 @@ int main(int argc, char* argv[])
 	CalibrationState mode = s.inputType == Settings::InputType::IMAGE_LIST ? CalibrationState::CAPTURING : CalibrationState::DETECTION;
 	clock_t prevTimestamp = 0;
 	std::chrono::time_point<std::chrono::high_resolution_clock> prevFrame = std::chrono::high_resolution_clock::now();
+	std::chrono::time_point<std::chrono::high_resolution_clock> startAnimTime = std::chrono::high_resolution_clock::now();
 	double dt;
+	double animTime = 0;
 	const Scalar RED(0, 0, 255), GREEN(0, 255, 0), BLUE(255, 0, 0); // BGR
-
-	Point3f xAxis(s.squareSize * 2.0f + 2.0f, 0, 0), yAxis(0, s.squareSize * 2.0f + 2.0f, 0), zAxis(0, 0, s.squareSize * 2.0f + 2.0f);
 
 	const char ESC_KEY = 27;
 
-	double animTime = 0;
+	// For Axis Purposes
+	Point3f origin(0, 0, 0);
+	int axisThickness = 3;
+	float axisMultiplier = 4.0f;
+	Point3f xAxis(s.squareSize * axisMultiplier, 0, 0);
+	Point3f yAxis(0, s.squareSize * axisMultiplier, 0);
+	Point3f zAxis(0, 0, s.squareSize * axisMultiplier);
+	float axisTextOffset = 2.0f;
+	Point3f xAxisText(s.squareSize * axisMultiplier + axisTextOffset, 0, 0);
+	Point3f yAxisText(0, s.squareSize * axisMultiplier + axisTextOffset, 0);
+	Point3f zAxisText(0, 0, s.squareSize * axisMultiplier + axisTextOffset);
+
+	// For Cube
+	vector<Point3d> points;
+	points.push_back(Point3d(0, 0, 0));
+	points.push_back(Point3d(0, 50, 0));
+	points.push_back(Point3d(0, 50, 50));
+	points.push_back(Point3d(0, 0, 50));
+	points.push_back(Point3d(50, 0, 0));
+	points.push_back(Point3d(50, 50, 0));
+	points.push_back(Point3d(50, 50, 50));
+	points.push_back(Point3d(50, 0, 50));
+	cv:Scalar cubeColor = Scalar(255, 0, 0);
+	int cubeThickness = 7;
 
 	//! [get_input]
 	while (true)
@@ -214,18 +237,6 @@ int main(int argc, char* argv[])
 		//! [find_pattern]
 		vector<Point2f> pointBuf;
 
-		vector<Point3d> points;
-		points.push_back(Point3d(0, 0, 0));
-		points.push_back(Point3d(0, 50, 0));
-		points.push_back(Point3d(0, 50, 50));
-		points.push_back(Point3d(0, 0, 50));
-		points.push_back(Point3d(50, 0, 0));
-		points.push_back(Point3d(50, 50, 0));
-		points.push_back(Point3d(50, 50, 50));
-		points.push_back(Point3d(50, 0, 50));
-		cv:Scalar cubeColor = Scalar(255, 0, 0);
-		int cubeThickness = 7;
-
 		bool found;
 
 		int chessBoardFlags = CALIB_CB_ADAPTIVE_THRESH | CALIB_CB_NORMALIZE_IMAGE;
@@ -263,6 +274,9 @@ int main(int argc, char* argv[])
 					Size(-1, -1), TermCriteria(TermCriteria::EPS + TermCriteria::COUNT, 30, 0.0001));
 			}
 
+			// Draw the corners.
+			drawChessboardCorners(view, s.boardSize, Mat(pointBuf), found);
+
 			switch (mode)
 			{
 			case CalibrationState::CAPTURING:
@@ -278,15 +292,34 @@ int main(int argc, char* argv[])
 			break;
 			case CalibrationState::CALIBRATED:
 			{
-				camera.estimatePose(corners, pointBuf, dt, inliers);
+				if (clock() - prevTimestamp > (clock_t)s.delayUpdate * 1e-3 * CLOCKS_PER_SEC)
+				{
+					// For camera only take new samples after delay time
+					camera.estimatePose(corners, pointBuf, (double)(clock() - prevTimestamp) / (double)CLOCKS_PER_SEC, inliers);
+					prevTimestamp = clock();
+				}
 				
-				cv::drawFrameAxes(view, camera.CameraMatrix(), camera.DistCoeffs(), camera.RotationVec(), camera.TranslationVec(), s.squareSize * 2.0f);
+				{
+					// Axis Drawing
+					cv::Point2f ori = camera.projectPoint(origin);
+					cv::Point2f xAxis2d = camera.projectPoint(xAxis);
+					cv::Point2f yAxis2d = camera.projectPoint(yAxis);
+					cv::Point2f zAxis2d = camera.projectPoint(zAxis);
+
+					cv::line(view, ori, xAxis2d, RED, axisThickness);
+					cv::line(view, ori, yAxis2d, GREEN, axisThickness);
+					cv::line(view, ori, zAxis2d, BLUE, axisThickness);
+
+					// Removed due to inverted axis
+					// cv::drawFrameAxes(view, camera.CameraMatrix(), camera.DistCoeffs(), camera.RotationVec(), camera.TranslationVec(), s.squareSize * 2.0f);
+				}
+				
 
 				{
 					// Cube Drawing
 					vector<Point2f> cube;
-					for (const auto &i : points) {
-						cube.push_back(camera.projectPoint(i));
+					for (const auto &p : points) {
+						cube.push_back(camera.projectPoint(p));
 					}
 
 					cv::line(view, cube.at(0), cube.at(1), cubeColor, cubeThickness);
@@ -305,14 +338,15 @@ int main(int argc, char* argv[])
 
 				{
 					// Animation
-					animTime += dt;
+					animTime = std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(std::chrono::high_resolution_clock::now() - startAnimTime).count();
 					for (size_t i = 0; i < corners.size(); i++)
 					{
+						const float maxHeight = 3.0f;
 						const float u = corners[i].x / grid_width;
 						const float v = corners[i].y / grid_height;
-						const float k = (float)std::sin(CV_PI * (u + v + animTime / 2.0f)) / 2.0f + 0.5f;
-						const float k2 = (float)std::cos(CV_PI * (u + v + animTime / 10.0f)) / 2.0f + 0.5f;
-						cv::Point3f newPos(corners[i].x, corners[i].y, corners[i].z + s.squareSize * k + s.squareSize * 2.0f * k2 );
+						const float k = (float)std::sin(CV_PI * (u + v + animTime / 2000.0f)) / 2.0f + 0.5f;
+						const float k2 = (float)std::cos(CV_PI * (u + v + animTime / 20000.0f)) / 2.0f + 0.5f;
+						cv::Point3f newPos(corners[i].x, corners[i].y, corners[i].z + s.squareSize * maxHeight * (k + 2.0f * k2) / 3.0f);
 						cv::Scalar color(255.0f * (k / 2.0f + 0.5), 255.0f * v, 255.0f * u);
 						cv::circle(view, camera.projectPoint(newPos), 2, color, 2);
 					}
@@ -323,11 +357,6 @@ int main(int argc, char* argv[])
 			default:
 				break;
 			}
-
-
-
-			// Draw the corners.
-			drawChessboardCorners(view, s.boardSize, Mat(pointBuf), found);
 		}
 		//! [pattern_found]
 		//----------------------------- Output Text ------------------------------------------------
@@ -360,9 +389,9 @@ int main(int argc, char* argv[])
 		{
 			if (found)
 			{
-				putText(view, "x", camera.projectPoint(xAxis), 1, 3, RED, 3);
-				putText(view, "y", camera.projectPoint(yAxis), 1, 3, GREEN, 3);
-				putText(view, "z", camera.projectPoint(zAxis), 1, 3, BLUE, 3);
+				putText(view, "x", camera.projectPoint(xAxisText), 1, 3, RED, 3);
+				putText(view, "y", camera.projectPoint(yAxisText), 1, 3, GREEN, 3);
+				putText(view, "z", camera.projectPoint(zAxisText), 1, 3, BLUE, 3);
 			}
 
 		}

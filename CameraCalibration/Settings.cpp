@@ -35,6 +35,7 @@ void Settings::write(cv::FileStorage& fs) const
 
 		<< "Input_FlipAroundHorizontalAxis" << flipVertical
 		<< "Input_Delay" << delay
+		<< "Update_Delay" << delayUpdate
 		<< "Input" << input
 		<< "}";
 }
@@ -70,6 +71,7 @@ void Settings::read(const cv::FileNode& node)
 	node["Show_UndistortedImage"] >> showUndistorsed;
 	node["Input"] >> input;
 	node["Input_Delay"] >> delay;
+	node["Update_Delay"] >> delayUpdate;
 	node["Fix_K1"] >> fixK1;
 	node["Fix_K2"] >> fixK2;
 	node["Fix_K3"] >> fixK3;

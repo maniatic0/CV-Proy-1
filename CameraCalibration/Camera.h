@@ -13,48 +13,78 @@ class Camera
 {
 public:
 
-	Camera() : aMatrix(cv::Mat::zeros(3, 3, CV_64FC1)), rMatrix(cv::Mat::zeros(3, 3, CV_64FC1)),
+	Camera() : kMatrix(cv::Mat::zeros(3, 3, CV_64FC1)), rMatrix(cv::Mat::zeros(3, 3, CV_64FC1)),
 		tMatrix(cv::Mat::zeros(3, 1, CV_64FC1)), pMatrix(cv::Mat::zeros(3, 4, CV_64FC1)), world2View(cv::Mat::zeros(3, 4, CV_64FC1)), useExtrinsicGuess(false),
 		measurements(cv::Mat::zeros(nMeasurements, 1, CV_64FC1)), rMatrixKalman(cv::Mat::zeros(3, 3, CV_64FC1)), tMatrixKalman(cv::Mat::zeros(3, 1, CV_64FC1))
 	{
 		ResetKalmanFilter();
 	}
 
+	/// <summary>
+	/// Estimate the pose of the camera against the board
+	/// </summary>
+	/// <param name="list_points3d">Board 3d world coordinates</param>
+	/// <param name="list_points2d">Board 2d image plane detected coordinates</param>
+	/// <param name="dt">Time from last update</param>
+	/// <param name="inliers_idx">Accepted points for the estimation</param>
 	void estimatePose(const std::vector<cv::Point3f>& list_points3d,        // list with model 3D coordinates
 		const std::vector<cv::Point2f>& list_points2d,        // list with scene 2D coordinates
 		const double dt,
 		cv::Mat& inliers_idx // irnliers container
 	);
 
+	/// <summary>
+	/// Precalculate World to View Matrix
+	/// </summary>
 	inline void prepareWorld2View()
 	{
-		world2View = aMatrix * pMatrix;
+		world2View = kMatrix * pMatrix;
 	}
 
+	/// <summary>
+	/// Set intrisic camera information
+	/// </summary>
+	/// <param name="cameraMatrix">Camera's Instrinsic Matrix</param>
+	/// <param name="coeffs">Camera's Distortion Coefficients</param>
 	inline void setIntrinsics(const cv::Mat& cameraMatrix, const cv::Mat& coeffs)
 	{
-		cameraMatrix.copyTo(aMatrix);
+		cameraMatrix.copyTo(kMatrix);
 		coeffs.copyTo(distCoeffs);
 		prepareWorld2View();
 		ResetKalmanFilter();
 	}
 
+	/// <summary>
+	/// Set Camera Rotation
+	/// </summary>
+	/// <param name="rvec">Rotation Vector</param>
 	inline void setRot(const cv::Mat& rvec)
 	{
 		rvec.copyTo(rvec_);
 		cv::Rodrigues(rvec, rMatrix);
 	}
 
+	/// <summary>
+	/// Set Camera Translation
+	/// </summary>
+	/// <param name="tvec">Translation Vector</param>
 	inline void setTrans(const cv::Mat& tvec)
 	{
 		tvec.copyTo(tMatrix);
 	}
 
+	/// <summary>
+	/// If the pose estimation should use the previous rotation and translation for guess
+	/// </summary>
+	/// <param name="useGuess"></param>
 	inline void setUseExtrinsicGuess(const bool useGuess)
 	{
 		useExtrinsicGuess = useGuess;
 	}
 
+	/// <summary>
+	/// Prepare all the matrices and precalculations
+	/// </summary>
 	inline void preparePMat()
 	{
 		set_P_matrix(rMatrix, tMatrix);
@@ -62,6 +92,11 @@ public:
 		prepareWorld2View();
 	}
 
+	/// <summary>
+	/// Set Camera's extrinsic information
+	/// </summary>
+	/// <param name="rvec">Camera's Rotation Vector</param>
+	/// <param name="tvec">Camera's Translation Vector</param>
 	inline void setExtrinsics(const cv::Mat& rvec, const cv::Mat& tvec)
 	{
 		setRot(rvec);
@@ -69,33 +104,66 @@ public:
 		preparePMat();
 	}
 
+	/// <summary>
+	/// Get Camera's Instrinsic Matrix
+	/// </summary>
+	/// <returns></returns>
 	inline const cv::Mat& CameraMatrix() const
 	{
-		return aMatrix;
+		return kMatrix;
 	}
 
+	/// <summary>
+	/// Get Distortion Coefficients
+	/// </summary>
+	/// <returns></returns>
 	inline const cv::Mat& DistCoeffs() const
 	{
 		return distCoeffs;
 	}
 
+	/// <summary>
+	/// Rotation Vector
+	/// </summary>
+	/// <returns></returns>
 	inline const cv::Mat& RotationVec() const
 	{
 		return rvec_;
 	}
 
+	/// <summary>
+	/// Translation Vector
+	/// </summary>
+	/// <returns></returns>
 	inline const cv::Mat& TranslationVec() const
 	{
 		return tMatrix;
 	}
 
+	/// <summary>
+	/// Project a 3D Point in world space to 2D point in view space
+	/// </summary>
+	/// <param name="point">3D Point to Project</param>
+	/// <returns>2D Point</returns>
 	inline cv::Point2f projectPoint(const cv::Point3f& point)
 	{
+#if 0
+		std::vector<cv::Point3f> startPoints(1);
+		std::vector<cv::Point2f> resPoints(1);
+		startPoints[0] = point;
+
+		cv::projectPoints(startPoints,
+			rvec_, tMatrix,
+			kMatrix, distCoeffs,
+			resPoints
+			);
+		return resPoints[0];
+#else
 		// 3D point vector [x y z 1]'
 		cv::Mat point3d_vec = cv::Mat(4, 1, CV_64FC1);
 		point3d_vec.at<double>(0) = point.x;
 		point3d_vec.at<double>(1) = point.y;
-		point3d_vec.at<double>(2) = point.z;
+		point3d_vec.at<double>(2) = -point.z; // Fix for left hand side
 		point3d_vec.at<double>(3) = 1;
 		// 2D point		vector [u v 1]'
 		cv::Mat point2d_vec = cv::Mat(4, 1, CV_64FC1);
@@ -105,11 +173,12 @@ public:
 		point2d.x = (float)(point2d_vec.at<double>(0) / point2d_vec.at<double>(2));
 		point2d.y = (float)(point2d_vec.at<double>(1) / point2d_vec.at<double>(2));
 		return point2d;
+#endif
 	}
 
 
 private:
-	cv::Mat aMatrix;
+	cv::Mat kMatrix;
 	cv::Mat rMatrix;
 	cv::Mat tMatrix;
 	cv::Mat pMatrix;

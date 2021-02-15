@@ -26,7 +26,7 @@ void Camera::estimatePose(const std::vector<cv::Point3f>& list_points3d,        
 		tvec = cv::Mat::zeros(3, 1, CV_64FC1);
 	}
 
-	const bool res = cv::solvePnPRansac(list_points3d, list_points2d, aMatrix, distCoeffs, rvec, tvec,
+	const bool res = cv::solvePnPRansac(list_points3d, list_points2d, kMatrix, distCoeffs, rvec, tvec,
 		useExtrinsicGuess, iterationsCount, reprojectionError, confidence, inliers_idx, method);
 
 	if (res)
