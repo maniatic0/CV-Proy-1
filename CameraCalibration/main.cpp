@@ -387,6 +387,31 @@ int main(int argc, char* argv[])
 						// Poor's man Z-Buffering
 						resetTempBuffers(view, depth, colorTemp, depthTemp);
 
+						const Point3f& p0 = cube.at(4);
+						const Point3f& p1 = cube.at(5);
+						const Point3f& p2 = cube.at(6);
+						const Point3f& p3 = cube.at(7);
+						const float pDepth = (std::min(p0.z, p1.z), std::min(p2.z, p3.z)); // Poor's man approximation
+
+						const Point2f p02d = Point2f(p0.x, p0.y);
+						const Point2f p12d = Point2f(p1.x, p1.y);
+						const Point2f p22d = Point2f(p2.x, p2.y);
+						const Point2f p32d = Point2f(p3.x, p3.y);
+
+						const Point facePoints[1][4] = { { p02d , p12d, p22d, p32d } };
+						const Point* ppt[1] = { facePoints[0] };
+						int npt[] = { 4 };
+
+						cv::fillPoly(colorTemp, ppt, npt, 1, cubeColor, LINE_8);
+						cv::fillPoly(depthTemp, ppt, npt, 1, Scalar(pDepth), LINE_8);
+
+						zBuffering(view, depth, colorTemp, depthTemp);
+					}
+
+					{
+						// Poor's man Z-Buffering
+						resetTempBuffers(view, depth, colorTemp, depthTemp);
+
 						const Point3f& ori = cube.at(0);
 						const Point3f& dest = cube.at(1);
 						const float pDepth = std::min(ori.z, dest.z); // Poor's man approximation
