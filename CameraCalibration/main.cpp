@@ -210,7 +210,7 @@ int main(int argc, char* argv[])
 						}
 						else
 						{
-							std::cout << "We improve the calibration!: " << imagePoints.size() << "/" << (size_t)s.nrFrames << std::endl;
+							std::cout << "We improved the calibration!: " << imagePoints.size() << "/" << (size_t)s.nrFrames << std::endl;
 						}
 					}
 					else
