@@ -20,6 +20,32 @@
 using namespace cv;
 using namespace std;
 
+constexpr float depthClean = std::numeric_limits<double>::infinity();
+
+inline void resetTempBuffers(const cv::Mat& view, const cv::Mat& depth, cv::Mat& colorTemp, cv::Mat& depthTemp)
+{
+	colorTemp.create(view.rows, view.cols, view.type());
+	colorTemp.setTo(Scalar(0, 0, 0));
+
+	depthTemp.create(view.rows, view.cols, depth.type());
+	depthTemp.setTo(Scalar(depthClean));
+}
+
+inline void zBuffering(cv::Mat &view, cv::Mat& depth, const cv::Mat& colorTemp, const cv::Mat& depthTemp)
+{
+	for (int i = 0; i < view.rows; i++)
+	{
+		for (int j = 0; j < view.cols; j++)
+		{
+			if (depthTemp.at<float>(i, j) < depth.at<float>(i, j))
+			{
+				view.at<Vec3b>(i, j) = colorTemp.at<Vec3b>(i, j);
+				depth.at<float>(i, j) = depthTemp.at<float>(i, j);
+			}
+		}
+	}
+}
+
 int main(int argc, char* argv[])
 {
 	const String keys
@@ -116,15 +142,20 @@ int main(int argc, char* argv[])
 	// For Cube
 	vector<Point3d> points;
 	points.push_back(Point3d(0, 0, 0));
-	points.push_back(Point3d(0, 50, 0));
-	points.push_back(Point3d(0, 50, 50));
-	points.push_back(Point3d(0, 0, 50));
-	points.push_back(Point3d(50, 0, 0));
-	points.push_back(Point3d(50, 50, 0));
-	points.push_back(Point3d(50, 50, 50));
-	points.push_back(Point3d(50, 0, 50));
-	cv:Scalar cubeColor = Scalar(255, 0, 0);
+	points.push_back(Point3d(0, s.squareSize * 2.0f, 0));
+	points.push_back(Point3d(0, s.squareSize * 2.0f, s.squareSize * 2.0f));
+	points.push_back(Point3d(0, 0, s.squareSize * 2.0f));
+	points.push_back(Point3d(s.squareSize * 2.0f, 0, 0));
+	points.push_back(Point3d(s.squareSize * 2.0f, s.squareSize * 2.0f, 0));
+	points.push_back(Point3d(s.squareSize * 2.0f, s.squareSize * 2.0f, s.squareSize * 2.0f));
+	points.push_back(Point3d(s.squareSize * 2.0f, 0, s.squareSize * 2.0f));
+	cv:Scalar cubeColor = Scalar(0, 255, 255);
 	int cubeThickness = 7;
+
+	// Poor man Z Buffering. Everything is a transparency
+	Mat depth;
+	Mat colorTemp;
+	Mat depthTemp;
 
 	//! [get_input]
 	while (true)
@@ -135,6 +166,8 @@ int main(int argc, char* argv[])
 		bool blinkOutput = false;
 
 		view = s.nextImage();
+		depth.create(view.rows, view.cols, CV_32FC1);
+		depth.setTo(Scalar(depthClean));
 
 		//-----  If no more image, or got enough, then try to calibrate and show result -------------
 		if (mode == CalibrationState::CAPTURING && imagePoints.size() >= 1 && preImagePointsSize < imagePoints.size())
@@ -301,39 +334,258 @@ int main(int argc, char* argv[])
 				
 				{
 					// Axis Drawing
-					cv::Point2f ori = camera.projectPoint(origin);
-					cv::Point2f xAxis2d = camera.projectPoint(xAxis);
-					cv::Point2f yAxis2d = camera.projectPoint(yAxis);
-					cv::Point2f zAxis2d = camera.projectPoint(zAxis);
+					cv::Point3f ori = camera.projectPoint(origin);
+					cv::Point2f ori2d(ori.x, ori.y);
+					cv::Point3f xAxis2d = camera.projectPoint(xAxis);
+					cv::Point2f xAxis2d2d(xAxis2d.x, xAxis2d.y);
+					cv::Point3f yAxis2d = camera.projectPoint(yAxis);
+					cv::Point2f yAxis2d2d(yAxis2d.x, yAxis2d.y);
+					cv::Point3f zAxis2d = camera.projectPoint(zAxis);
+					cv::Point2f zAxis2d2d(zAxis2d.x, zAxis2d.y);
 
-					cv::line(view, ori, xAxis2d, RED, axisThickness);
-					cv::line(view, ori, yAxis2d, GREEN, axisThickness);
-					cv::line(view, ori, zAxis2d, BLUE, axisThickness);
 
-					// Removed due to inverted axis
-					// cv::drawFrameAxes(view, camera.CameraMatrix(), camera.DistCoeffs(), camera.RotationVec(), camera.TranslationVec(), s.squareSize * 2.0f);
+					{
+						// Poor's man Z-Buffering
+						resetTempBuffers(view, depth, colorTemp, depthTemp);
+						
+						cv::line(colorTemp, ori2d, xAxis2d2d, Scalar(RED.val[0], RED.val[1], RED.val[2]), axisThickness);
+						cv::line(depthTemp, ori2d, xAxis2d2d, Scalar(xAxis2d.z), axisThickness);
+
+						zBuffering(view, depth, colorTemp, depthTemp);
+					}
+
+					{
+						// Poor's man Z-Buffering
+						resetTempBuffers(view, depth, colorTemp, depthTemp);
+
+						cv::line(colorTemp, ori2d, yAxis2d2d, Scalar(GREEN.val[0], GREEN.val[1], GREEN.val[2]), axisThickness);
+						cv::line(depthTemp, ori2d, yAxis2d2d, Scalar(yAxis2d.z), axisThickness);
+
+						zBuffering(view, depth, colorTemp, depthTemp);
+					}
+
+					{
+						// Poor's man Z-Buffering
+						resetTempBuffers(view, depth, colorTemp, depthTemp);
+
+						cv::line(colorTemp, ori2d, zAxis2d2d, Scalar(BLUE.val[0], BLUE.val[1], BLUE.val[2]), axisThickness);
+						cv::line(depthTemp, ori2d, zAxis2d2d, Scalar(zAxis2d.z), axisThickness);
+
+						zBuffering(view, depth, colorTemp, depthTemp);
+					}
 				}
 				
 
 				{
 					// Cube Drawing
-					vector<Point2f> cube;
+					vector<Point3f> cube;
 					for (const auto &p : points) {
 						cube.push_back(camera.projectPoint(p));
 					}
 
-					cv::line(view, cube.at(0), cube.at(1), cubeColor, cubeThickness);
-					cv::line(view, cube.at(1), cube.at(2), cubeColor, cubeThickness);
-					cv::line(view, cube.at(2), cube.at(3), cubeColor, cubeThickness);
-					cv::line(view, cube.at(3), cube.at(0), cubeColor, cubeThickness);
-					cv::line(view, cube.at(0), cube.at(4), cubeColor, cubeThickness);
-					cv::line(view, cube.at(1), cube.at(5), cubeColor, cubeThickness);
-					cv::line(view, cube.at(2), cube.at(6), cubeColor, cubeThickness);
-					cv::line(view, cube.at(3), cube.at(7), cubeColor, cubeThickness);
-					cv::line(view, cube.at(4), cube.at(5), cubeColor, cubeThickness);
-					cv::line(view, cube.at(5), cube.at(6), cubeColor, cubeThickness);
-					cv::line(view, cube.at(6), cube.at(7), cubeColor, cubeThickness);
-					cv::line(view, cube.at(7), cube.at(4), cubeColor, cubeThickness);
+					{
+						// Poor's man Z-Buffering
+						resetTempBuffers(view, depth, colorTemp, depthTemp);
+
+						const Point3f& ori = cube.at(0);
+						const Point3f& dest = cube.at(1);
+						const float pDepth = std::min(ori.z, dest.z); // Poor's man approximation
+
+						const Point2f ori2d = Point2f(ori.x, ori.y);
+						const Point2f dest2d = Point2f(dest.x, dest.y);
+
+						cv::line(colorTemp, ori2d, dest2d, cubeColor, cubeThickness);
+						cv::line(depthTemp, ori2d, dest2d, Scalar(pDepth), cubeThickness);
+						
+						zBuffering(view, depth, colorTemp, depthTemp);
+					}
+
+					{
+						// Poor's man Z-Buffering
+						resetTempBuffers(view, depth, colorTemp, depthTemp);
+
+						const Point3f& ori = cube.at(1);
+						const Point3f& dest = cube.at(2);
+						const float pDepth = std::min(ori.z, dest.z); // Poor's man approximation
+
+						const Point2f ori2d = Point2f(ori.x, ori.y);
+						const Point2f dest2d = Point2f(dest.x, dest.y);
+
+						cv::line(colorTemp, ori2d, dest2d, cubeColor, cubeThickness);
+						cv::line(depthTemp, ori2d, dest2d, Scalar(pDepth), cubeThickness);
+
+						zBuffering(view, depth, colorTemp, depthTemp);
+					}
+
+					{
+						// Poor's man Z-Buffering
+						resetTempBuffers(view, depth, colorTemp, depthTemp);
+
+						const Point3f& ori = cube.at(2);
+						const Point3f& dest = cube.at(3);
+						const float pDepth = std::min(ori.z, dest.z); // Poor's man approximation
+
+						const Point2f ori2d = Point2f(ori.x, ori.y);
+						const Point2f dest2d = Point2f(dest.x, dest.y);
+
+						cv::line(colorTemp, ori2d, dest2d, cubeColor, cubeThickness);
+						cv::line(depthTemp, ori2d, dest2d, Scalar(pDepth), cubeThickness);
+
+						zBuffering(view, depth, colorTemp, depthTemp);
+					}
+					
+					{
+						// Poor's man Z-Buffering
+						resetTempBuffers(view, depth, colorTemp, depthTemp);
+
+						const Point3f& ori = cube.at(3);
+						const Point3f& dest = cube.at(0);
+						const float pDepth = std::min(ori.z, dest.z); // Poor's man approximation
+
+						const Point2f ori2d = Point2f(ori.x, ori.y);
+						const Point2f dest2d = Point2f(dest.x, dest.y);
+
+						cv::line(colorTemp, ori2d, dest2d, cubeColor, cubeThickness);
+						cv::line(depthTemp, ori2d, dest2d, Scalar(pDepth), cubeThickness);
+
+						zBuffering(view, depth, colorTemp, depthTemp);
+					}
+					
+					{
+						// Poor's man Z-Buffering
+						resetTempBuffers(view, depth, colorTemp, depthTemp);
+
+						const Point3f& ori = cube.at(0);
+						const Point3f& dest = cube.at(4);
+						const float pDepth = std::min(ori.z, dest.z); // Poor's man approximation
+
+						const Point2f ori2d = Point2f(ori.x, ori.y);
+						const Point2f dest2d = Point2f(dest.x, dest.y);
+
+						cv::line(colorTemp, ori2d, dest2d, cubeColor, cubeThickness);
+						cv::line(depthTemp, ori2d, dest2d, Scalar(pDepth), cubeThickness);
+
+						zBuffering(view, depth, colorTemp, depthTemp);
+					}
+					
+					{
+						// Poor's man Z-Buffering
+						resetTempBuffers(view, depth, colorTemp, depthTemp);
+
+						const Point3f& ori = cube.at(1);
+						const Point3f& dest = cube.at(5);
+						const float pDepth = std::min(ori.z, dest.z); // Poor's man approximation
+
+						const Point2f ori2d = Point2f(ori.x, ori.y);
+						const Point2f dest2d = Point2f(dest.x, dest.y);
+
+						cv::line(colorTemp, ori2d, dest2d, cubeColor, cubeThickness);
+						cv::line(depthTemp, ori2d, dest2d, Scalar(pDepth), cubeThickness);
+
+						zBuffering(view, depth, colorTemp, depthTemp);
+					}
+					
+					{
+						// Poor's man Z-Buffering
+						resetTempBuffers(view, depth, colorTemp, depthTemp);
+
+						const Point3f& ori = cube.at(2);
+						const Point3f& dest = cube.at(6);
+						const float pDepth = std::min(ori.z, dest.z); // Poor's man approximation
+
+						const Point2f ori2d = Point2f(ori.x, ori.y);
+						const Point2f dest2d = Point2f(dest.x, dest.y);
+
+						cv::line(colorTemp, ori2d, dest2d, cubeColor, cubeThickness);
+						cv::line(depthTemp, ori2d, dest2d, Scalar(pDepth), cubeThickness);
+
+						zBuffering(view, depth, colorTemp, depthTemp);
+					}
+					
+					{
+						// Poor's man Z-Buffering
+						resetTempBuffers(view, depth, colorTemp, depthTemp);
+
+						const Point3f& ori = cube.at(3);
+						const Point3f& dest = cube.at(7);
+						const float pDepth = std::min(ori.z, dest.z); // Poor's man approximation
+
+						const Point2f ori2d = Point2f(ori.x, ori.y);
+						const Point2f dest2d = Point2f(dest.x, dest.y);
+
+						cv::line(colorTemp, ori2d, dest2d, cubeColor, cubeThickness);
+						cv::line(depthTemp, ori2d, dest2d, Scalar(pDepth), cubeThickness);
+
+						zBuffering(view, depth, colorTemp, depthTemp);
+					}
+					
+					{
+						// Poor's man Z-Buffering
+						resetTempBuffers(view, depth, colorTemp, depthTemp);
+
+						const Point3f& ori = cube.at(4);
+						const Point3f& dest = cube.at(5);
+						const float pDepth = std::min(ori.z, dest.z); // Poor's man approximation
+
+						const Point2f ori2d = Point2f(ori.x, ori.y);
+						const Point2f dest2d = Point2f(dest.x, dest.y);
+
+						cv::line(colorTemp, ori2d, dest2d, cubeColor, cubeThickness);
+						cv::line(depthTemp, ori2d, dest2d, Scalar(pDepth), cubeThickness);
+
+						zBuffering(view, depth, colorTemp, depthTemp);
+					}
+					
+					{
+						// Poor's man Z-Buffering
+						resetTempBuffers(view, depth, colorTemp, depthTemp);
+
+						const Point3f& ori = cube.at(5);
+						const Point3f& dest = cube.at(6);
+						const float pDepth = std::min(ori.z, dest.z); // Poor's man approximation
+
+						const Point2f ori2d = Point2f(ori.x, ori.y);
+						const Point2f dest2d = Point2f(dest.x, dest.y);
+
+						cv::line(colorTemp, ori2d, dest2d, cubeColor, cubeThickness);
+						cv::line(depthTemp, ori2d, dest2d, Scalar(pDepth), cubeThickness);
+
+						zBuffering(view, depth, colorTemp, depthTemp);
+					}
+					
+					{
+						// Poor's man Z-Buffering
+						resetTempBuffers(view, depth, colorTemp, depthTemp);
+
+						const Point3f& ori = cube.at(6);
+						const Point3f& dest = cube.at(7);
+						const float pDepth = std::min(ori.z, dest.z); // Poor's man approximation
+
+						const Point2f ori2d = Point2f(ori.x, ori.y);
+						const Point2f dest2d = Point2f(dest.x, dest.y);
+
+						cv::line(colorTemp, ori2d, dest2d, cubeColor, cubeThickness);
+						cv::line(depthTemp, ori2d, dest2d, Scalar(pDepth), cubeThickness);
+
+						zBuffering(view, depth, colorTemp, depthTemp);
+					}
+					
+					{
+						// Poor's man Z-Buffering
+						resetTempBuffers(view, depth, colorTemp, depthTemp);
+
+						const Point3f& ori = cube.at(7);
+						const Point3f& dest = cube.at(4);
+						const float pDepth = std::min(ori.z, dest.z); // Poor's man approximation
+
+						const Point2f ori2d = Point2f(ori.x, ori.y);
+						const Point2f dest2d = Point2f(dest.x, dest.y);
+
+						cv::line(colorTemp, ori2d, dest2d, cubeColor, cubeThickness);
+						cv::line(depthTemp, ori2d, dest2d, Scalar(pDepth), cubeThickness);
+
+						zBuffering(view, depth, colorTemp, depthTemp);
+					}
 				}
 
 				{
@@ -346,9 +598,23 @@ int main(int argc, char* argv[])
 						const float v = corners[i].y / grid_height;
 						const float k = (float)std::sin(CV_PI * (u + v + animTime / 2000.0f)) / 2.0f + 0.5f;
 						const float k2 = (float)std::cos(CV_PI * (u + v + animTime / 20000.0f)) / 2.0f + 0.5f;
-						cv::Point3f newPos(corners[i].x, corners[i].y, corners[i].z + s.squareSize * maxHeight * (k + 2.0f * k2) / 3.0f);
-						cv::Scalar color(255.0f * (k / 2.0f + 0.5), 255.0f * v, 255.0f * u);
-						cv::circle(view, camera.projectPoint(newPos), 2, color, 2);
+						
+						const cv::Point3f newPos(corners[i].x, corners[i].y, corners[i].z + s.squareSize * maxHeight * (k + 2.0f * k2) / 3.0f);
+						
+						const cv::Point3f projectedPos = camera.projectPoint(newPos);
+						const cv::Point2f projectedPos2d = Point2f(projectedPos.x, projectedPos.y);
+						const cv::Scalar color(255.0f * (k / 2.0f + 0.5), 255.0f * v, 255.0f * u);
+
+						{
+							// Poor's man Z-Buffering
+							resetTempBuffers(view, depth, colorTemp, depthTemp);
+
+							cv::circle(colorTemp, projectedPos2d, 2, color, 2);
+							cv::circle(depthTemp, projectedPos2d, 2, Scalar(projectedPos.z), 2);
+
+							zBuffering(view, depth, colorTemp, depthTemp);
+						}
+						
 					}
 				}
 				
@@ -389,9 +655,9 @@ int main(int argc, char* argv[])
 		{
 			if (found)
 			{
-				putText(view, "x", camera.projectPoint(xAxisText), 1, 3, RED, 3);
-				putText(view, "y", camera.projectPoint(yAxisText), 1, 3, GREEN, 3);
-				putText(view, "z", camera.projectPoint(zAxisText), 1, 3, BLUE, 3);
+				putText(view, "x", camera.projectPointNoDepth(xAxisText), 1, 3, RED, 3);
+				putText(view, "y", camera.projectPointNoDepth(yAxisText), 1, 3, GREEN, 3);
+				putText(view, "z", camera.projectPointNoDepth(zAxisText), 1, 3, BLUE, 3);
 			}
 
 		}

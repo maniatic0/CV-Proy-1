@@ -141,11 +141,11 @@ public:
 	}
 
 	/// <summary>
-	/// Project a 3D Point in world space to 2D point in view space
+	/// Project a 3D Point in world space to 2D point in view space with Depth
 	/// </summary>
 	/// <param name="point">3D Point to Project</param>
-	/// <returns>2D Point</returns>
-	inline cv::Point2f projectPoint(const cv::Point3f& point)
+	/// <returns>2D Point with depth</returns>
+	inline cv::Point3f projectPoint(const cv::Point3f& point)
 	{
 #if 0
 		std::vector<cv::Point3f> startPoints(1);
@@ -169,13 +169,25 @@ public:
 		cv::Mat point2d_vec = cv::Mat(4, 1, CV_64FC1);
 		point2d_vec = world2View * point3d_vec;
 		// Normalization of [u v]'
-		cv::Point2f point2d;
+		cv::Point3f point2d;
 		point2d.x = (float)(point2d_vec.at<double>(0) / point2d_vec.at<double>(2));
 		point2d.y = (float)(point2d_vec.at<double>(1) / point2d_vec.at<double>(2));
+		point2d.z = (float)point2d_vec.at<double>(2);
 		return point2d;
 #endif
 	}
 
+
+	/// <summary>
+	/// Project a 3D Point in world space to 2D point in view space
+	/// </summary>
+	/// <param name="point">3D Point to Project</param>
+	/// <returns>2D Point</returns>
+	inline cv::Point2f projectPointNoDepth(const cv::Point3f& point)
+	{
+		cv::Point3f p = projectPoint(point);
+		return cv::Point2f(p.x, p.y);
+	}
 
 private:
 	cv::Mat kMatrix;
