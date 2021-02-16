@@ -80,6 +80,7 @@ public:
 	bool fixK3;                  // fix K3 distortion coefficient
 	bool fixK4;                  // fix K4 distortion coefficient
 	bool fixK5;                  // fix K5 distortion coefficient
+	bool useKalmanFilter;		 // if to use Kalman Filter
 
 	int cameraID;
 	std::vector<std::string> imageList;

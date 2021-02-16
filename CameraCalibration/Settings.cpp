@@ -37,6 +37,7 @@ void Settings::write(cv::FileStorage& fs) const
 		<< "Input_Delay" << delay
 		<< "Update_Delay" << delayUpdate
 		<< "Input" << input
+		<< "Use_Kalman" << useKalmanFilter
 		<< "}";
 }
 
@@ -77,6 +78,7 @@ void Settings::read(const cv::FileNode& node)
 	node["Fix_K3"] >> fixK3;
 	node["Fix_K4"] >> fixK4;
 	node["Fix_K5"] >> fixK5;
+	node["Use_Kalman"] >> useKalmanFilter;
 
 	validate();
 }
@@ -92,6 +94,11 @@ void Settings::validate()
 	if (squareSize <= 10e-6)
 	{
 		std::cerr << "Invalid square size " << squareSize << std::endl;
+		goodInput = false;
+	}
+	if (gridWidth < squareSize)
+	{
+		std::cerr << "Invalid grid width " << gridWidth << std::endl;
 		goodInput = false;
 	}
 	if (nrFrames <= 0)

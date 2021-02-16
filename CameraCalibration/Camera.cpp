@@ -38,31 +38,32 @@ void Camera::estimatePose(const std::vector<cv::Point3f>& list_points3d,        
 		std::cout << "PnP Failed" << std::endl;
 	}
 
-	// GOOD MEASUREMENT
-	const bool goodKalmanMeasurment = inliers_idx.rows >= minInliersKalman;
-	if (goodKalmanMeasurment)
+	if (useKalmanFilter)
 	{
-		// fill the measurements vector
-		fillKalmanMeasurements(measurements, tMatrix, rMatrix);
-	}
-	else
-	{
-		std::cout << "Kalman Bad Measurement" << std::endl;
-	}
+		// GOOD MEASUREMENT
+		const bool goodKalmanMeasurment = inliers_idx.rows >= minInliersKalman;
+		if (goodKalmanMeasurment)
+		{
+			// fill the measurements vector
+			fillKalmanMeasurements(measurements, tMatrix, rMatrix);
+		}
+		else
+		{
+			std::cout << "Kalman Bad Measurement" << std::endl;
+		}
 
+		// update the Kalman filter with good measurements
+		updateKalmanFilter(KF, measurements, dt, tMatrixKalman, rMatrixKalman);
 
-	// update the Kalman filter with good measurements
-	updateKalmanFilter(KF, measurements, dt, tMatrixKalman, rMatrixKalman);
-
-	if (goodKalmanMeasurment)
-	{
-		// Update Matrices
-		tMatrixKalman.copyTo(tMatrix);
-		rMatrixKalman.copyTo(rMatrix);
-		cv::Rodrigues(rMatrix, rvec_);
-		preparePMat();
+		if (goodKalmanMeasurment)
+		{
+			// Update Matrices
+			tMatrixKalman.copyTo(tMatrix);
+			rMatrixKalman.copyTo(rMatrix);
+			cv::Rodrigues(rMatrix, rvec_);
+			preparePMat();
+		}
 	}
-	
 	
 }
 

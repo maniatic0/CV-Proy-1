@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Settings.h"
+
 #include <opencv2/core.hpp>
 #include <opencv2/calib3d.hpp>
 #include <opencv2/video/tracking.hpp>
@@ -13,9 +15,10 @@ class Camera
 {
 public:
 
-	Camera() : kMatrix(cv::Mat::zeros(3, 3, CV_64FC1)), rMatrix(cv::Mat::zeros(3, 3, CV_64FC1)),
+	Camera(Settings s) : kMatrix(cv::Mat::zeros(3, 3, CV_64FC1)), rMatrix(cv::Mat::zeros(3, 3, CV_64FC1)),
 		tMatrix(cv::Mat::zeros(3, 1, CV_64FC1)), pMatrix(cv::Mat::zeros(3, 4, CV_64FC1)), world2View(cv::Mat::zeros(3, 4, CV_64FC1)), useExtrinsicGuess(false),
-		measurements(cv::Mat::zeros(nMeasurements, 1, CV_64FC1)), rMatrixKalman(cv::Mat::zeros(3, 3, CV_64FC1)), tMatrixKalman(cv::Mat::zeros(3, 1, CV_64FC1))
+		measurements(cv::Mat::zeros(nMeasurements, 1, CV_64FC1)), rMatrixKalman(cv::Mat::zeros(3, 3, CV_64FC1)), tMatrixKalman(cv::Mat::zeros(3, 1, CV_64FC1)),
+		useKalmanFilter(s.useKalmanFilter), expectedDtKalman((double)s.delayUpdate * 1e-3 * (double)CLOCKS_PER_SEC)
 	{
 		ResetKalmanFilter();
 	}
@@ -26,7 +29,7 @@ public:
 	/// <param name="list_points3d">Board 3d world coordinates</param>
 	/// <param name="list_points2d">Board 2d image plane detected coordinates</param>
 	/// <param name="dt">Time from last update</param>
-	/// <param name="inliers_idx">Accepted points for the estimation</param>
+	/// <param name="inliers_idx">Index of accepted points for the estimation (PnP solver, usd in the Kalman Filter)</param>
 	void estimatePose(const std::vector<cv::Point3f>& list_points3d,        // list with model 3D coordinates
 		const std::vector<cv::Point2f>& list_points2d,        // list with scene 2D coordinates
 		const double dt,
@@ -217,7 +220,9 @@ private:
 	cv::Mat measurements;			// Kalman measurements from the last valid frame
 	cv::Mat rMatrixKalman;			// Kalman Rotation Estimation
 	cv::Mat tMatrixKalman;			// Kalman Translation Estimation
+	double expectedDtKalman;		// Kalman expected dt
 
+	bool useKalmanFilter;
 
 	/// <summary>
 	/// Set Projection Matrix
@@ -263,7 +268,7 @@ private:
 	/// </summary>
 	inline void ResetKalmanFilter()
 	{
-		resetKalmanFilter(KF, nStates, nMeasurements, nInputs, 0.125); // Last one is the estimated dt
+		resetKalmanFilter(KF, nStates, nMeasurements, nInputs, expectedDtKalman); // Last one is the estimated dt
 	}
 
 	/// <summary>

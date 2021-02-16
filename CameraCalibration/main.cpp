@@ -107,7 +107,7 @@ int main(int argc, char* argv[])
 
 	float grid_height = s.squareSize * (float)(s.boardSize.height - 1);
 
-	Camera camera;
+	Camera camera(s);
 	cv::Mat inliers;
 	vector<vector<Point2f> > imagePoints;
 	Mat cameraMatrixTemp, distCoeffsTemp;

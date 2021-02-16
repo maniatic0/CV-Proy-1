@@ -64,5 +64,8 @@
   <Fix_K4>1</Fix_K4>
   <!-- If true (non-zero) distortion coefficient k5 will be equals to zero.-->
   <Fix_K5>1</Fix_K5>
+
+  <!-- If true (non-zero) the Kalman Filter will be applied after the camera pose estimation.-->
+  <Use_Kalman>1</Use_Kalman>
 </Settings>
 </opencv_storage>
