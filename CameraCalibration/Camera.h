@@ -9,7 +9,7 @@
 #include <vector>
 
 /// <summary>
-/// Based On https://docs.opencv.org/master/dc/d2c/tutorial_real_time_pose.html
+/// Pose Estimation based on https://docs.opencv.org/master/dc/d2c/tutorial_real_time_pose.html
 /// </summary>
 class Camera
 {
@@ -18,7 +18,7 @@ public:
 	Camera(Settings s) : kMatrix(cv::Mat::zeros(3, 3, CV_64FC1)), rMatrix(cv::Mat::zeros(3, 3, CV_64FC1)),
 		tMatrix(cv::Mat::zeros(3, 1, CV_64FC1)), pMatrix(cv::Mat::zeros(3, 4, CV_64FC1)), world2View(cv::Mat::zeros(3, 4, CV_64FC1)), useExtrinsicGuess(false),
 		measurements(cv::Mat::zeros(nMeasurements, 1, CV_64FC1)), rMatrixKalman(cv::Mat::zeros(3, 3, CV_64FC1)), tMatrixKalman(cv::Mat::zeros(3, 1, CV_64FC1)),
-		useKalmanFilter(s.useKalmanFilter), expectedDtKalman((double)s.delayUpdate * 1e-3 * (double)CLOCKS_PER_SEC)
+		useKalmanFilter(s.useKalmanFilter), expectedDtKalman((double)s.delayUpdate * 1e-3 / (double)CLOCKS_PER_SEC), neverUseExtrinsicGuess(s.neverUseExtrinsicGuess)
 	{
 		ResetKalmanFilter();
 	}
@@ -30,10 +30,10 @@ public:
 	/// <param name="list_points2d">Board 2d image plane detected coordinates</param>
 	/// <param name="dt">Time from last update</param>
 	/// <param name="inliers_idx">Index of accepted points for the estimation (PnP solver, usd in the Kalman Filter)</param>
-	void estimatePose(const std::vector<cv::Point3f>& list_points3d,        // list with model 3D coordinates
-		const std::vector<cv::Point2f>& list_points2d,        // list with scene 2D coordinates
+	void estimatePose(const std::vector<cv::Point3f>& list_points3d,
+		const std::vector<cv::Point2f>& list_points2d,
 		const double dt,
-		cv::Mat& inliers_idx // irnliers container
+		cv::Mat& inliers_idx
 	);
 
 	/// <summary>
@@ -150,34 +150,22 @@ public:
 	/// <returns>2D Point with depthBuff</returns>
 	inline cv::Point3f projectPoint(const cv::Point3f& point)
 	{
-#if 0
-		std::vector<cv::Point3f> startPoints(1);
-		std::vector<cv::Point2f> resPoints(1);
-		startPoints[0] = point;
 
-		cv::projectPoints(startPoints,
-			rvec_, tMatrix,
-			kMatrix, distCoeffs,
-			resPoints
-			);
-		return resPoints[0];
-#else
-		// 3D point vector [x y z 1]'
-		cv::Mat point3d_vec = cv::Mat(4, 1, CV_64FC1);
-		point3d_vec.at<double>(0) = point.x;
-		point3d_vec.at<double>(1) = point.y;
-		point3d_vec.at<double>(2) = -point.z; // Fix for left hand side
-		point3d_vec.at<double>(3) = 1;
+		cv::Mat point3dHomogenous = cv::Mat(4, 1, CV_64FC1);
+		point3dHomogenous.at<double>(0) = point.x;
+		point3dHomogenous.at<double>(1) = point.y;
+		point3dHomogenous.at<double>(2) = -point.z; // Fix for left hand side
+		point3dHomogenous.at<double>(3) = 1;
 		// 2D point		vector [u v 1]'
-		cv::Mat point2d_vec = cv::Mat(4, 1, CV_64FC1);
-		point2d_vec = world2View * point3d_vec;
-		// Normalization of [u v]'
+		cv::Mat pointProj = cv::Mat(4, 1, CV_64FC1);
+		pointProj = world2View * point3dHomogenous;
+
+		// Perspective projection final step
 		cv::Point3f point2d;
-		point2d.x = (float)(point2d_vec.at<double>(0) / point2d_vec.at<double>(2));
-		point2d.y = (float)(point2d_vec.at<double>(1) / point2d_vec.at<double>(2));
-		point2d.z = (float)point2d_vec.at<double>(2);
+		point2d.x = (float)(pointProj.at<double>(0) / pointProj.at<double>(2));
+		point2d.y = (float)(pointProj.at<double>(1) / pointProj.at<double>(2));
+		point2d.z = (float)pointProj.at<double>(2);
 		return point2d;
-#endif
 	}
 
 
@@ -203,13 +191,14 @@ private:
 	cv::Mat rvec_;
 	cv::Mat distCoeffs;
 
-	bool useExtrinsicGuess;
+	bool useExtrinsicGuess; // Use extrinsic guess from the last frame
+	bool neverUseExtrinsicGuess; // Never use extrinsic guess
 
 	// RANSAC parameters
 	int iterationsCount = 500;        // number of Ransac iterations.
 	float reprojectionError = 2.0f;    // maximum allowed distance to consider it an inlier.
 	float confidence = 0.95f;          // RANSAC successful confidence.
-	cv::SolvePnPMethod method = cv::SOLVEPNP_ITERATIVE;
+	cv::SolvePnPMethod method = cv::SOLVEPNP_EPNP;
 
 	// Kalman Filter parameters
 	cv::KalmanFilter KF;			// instantiate Kalman Filter

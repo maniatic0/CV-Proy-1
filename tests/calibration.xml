@@ -30,7 +30,7 @@
   <Update_Delay>10</Update_Delay>	
   
   <!-- How many frames to use, for calibration. -->
-  <Calibrate_NrOfFrameToUse>25</Calibrate_NrOfFrameToUse>
+  <Calibrate_NrOfFrameToUse>15</Calibrate_NrOfFrameToUse>
 
   <!-- Calibration Minimum Threshold. -->
   <Acceptable_Threshold>0.001</Acceptable_Threshold>
@@ -67,5 +67,9 @@
 
   <!-- If true (non-zero) the Kalman Filter will be applied after the camera pose estimation.-->
   <Use_Kalman>1</Use_Kalman>
+
+  <!-- If true (non-zero) the PnP will never use the previous extrinsic values for a guess for the camera pose estimation.-->
+  <Never_Extrinsic_Guess>0</Never_Extrinsic_Guess>
+  
 </Settings>
 </opencv_storage>

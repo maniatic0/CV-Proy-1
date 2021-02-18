@@ -57,16 +57,28 @@ public:
 		resetDepthBuffer();
 	}
 
+	/// <summary>
+	/// Get Color Buffer
+	/// </summary>
+	/// <returns>Color Buffer</returns>
 	inline cv::Mat& getColor()
 	{
 		return colorBuff;
 	}
 
+	/// <summary>
+	/// Get Color Temp Buffer
+	/// </summary>
+	/// <returns>Color Temp Buffer</returns>
 	inline cv::Mat& getColorTemp()
 	{
 		return colorTemp;
 	}
 
+	/// <summary>
+	/// Get Depth Temp Buffer
+	/// </summary>
+	/// <returns>Depth Temp Buffer</returns>
 	inline cv::Mat& getDepthTemp()
 	{
 		return depthTemp;

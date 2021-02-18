@@ -38,6 +38,7 @@ void Settings::write(cv::FileStorage& fs) const
 		<< "Update_Delay" << delayUpdate
 		<< "Input" << input
 		<< "Use_Kalman" << useKalmanFilter
+		<< "Never_Extrinsic_Guess" << neverUseExtrinsicGuess
 		<< "}";
 }
 
@@ -79,6 +80,7 @@ void Settings::read(const cv::FileNode& node)
 	node["Fix_K4"] >> fixK4;
 	node["Fix_K5"] >> fixK5;
 	node["Use_Kalman"] >> useKalmanFilter;
+	node["Never_Extrinsic_Guess"] >> neverUseExtrinsicGuess;
 
 	validate();
 }

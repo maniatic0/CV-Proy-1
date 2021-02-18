@@ -54,8 +54,6 @@ int main(int argc, char* argv[])
 	const String keys
 		= "{help h usage ? |           | print this message            }"
 		"{@settings      |default.xml| input setting file            }"
-		"{d              |           | actual distance between top-left and top-right corners of "
-		"the calibration grid }"
 		"{winSize        | 11        | Half of search window for cornerSubPix }";
 	CommandLineParser parser(argc, argv, keys);
 	parser.about("This is a camera calibration sample.\n"
@@ -95,16 +93,14 @@ int main(int argc, char* argv[])
 
 	float grid_width = s.gridWidth;
 	bool release_object = s.releaseObject;
-	if (parser.has("d")) {
-		grid_width = parser.get<float>("d");
-		release_object = true;
-	}
 
+	// Only do this once
 	std::vector<cv::Point3f> corners;
 	calcBoardCornerPositions(s.boardSize, s.squareSize, corners, s.calibrationPattern);
 
 	float grid_height = s.squareSize * (float)(s.boardSize.height - 1);
 
+	// Render stuff
 	Camera camera(s);
 	cv::Mat inliers;
 	vector<vector<Point2f> > imagePoints;
@@ -153,7 +149,6 @@ int main(int argc, char* argv[])
 	// Poor man Z Buffering. Everything is a transparency
 	ZBuffer zBuffer;
 
-	//! [get_input]
 	while (true)
 	{
 		dt = std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(std::chrono::high_resolution_clock::now() - prevFrame).count();
@@ -164,7 +159,7 @@ int main(int argc, char* argv[])
 		zBuffer.setColor(s.nextImage());
 		Mat &view = zBuffer.getColor();
 
-		//-----  If no more image, or got enough, then try to calibrate and show result -------------
+		//If we are capturing to calibrate and we have enough images to attempt to calibrate and we accepted a new image to try to calibrate
 		if (mode == CalibrationState::CAPTURING && imagePoints.size() >= 1 && preImagePointsSize < imagePoints.size())
 		{
 			const CalibrationResult res = calibrateAndSave(s, imageSize, cameraMatrixTemp, distCoeffsTemp, rvecTemp, tvecTemp, imagePoints, corners, grid_width,

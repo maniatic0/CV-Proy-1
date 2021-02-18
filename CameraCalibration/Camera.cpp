@@ -4,18 +4,18 @@
 
 #include <iostream>
 
-void Camera::estimatePose(const std::vector<cv::Point3f>& list_points3d,        // list with model 3D coordinates
-	const std::vector<cv::Point2f>& list_points2d,        // list with scene 2D coordinates
+void Camera::estimatePose(const std::vector<cv::Point3f>& list_points3d,
+	const std::vector<cv::Point2f>& list_points2d,
 	const double dt,
-	cv::Mat& inliers_idx // irnliers id container (from PnP)
+	cv::Mat& inliers_idx
 )
 {
 	cv::Mat rvec; // output rotation vector
 	cv::Mat tvec; // output translation vector
 	// initial approximations of the rotation and translation vectors
 
-
-	if (useExtrinsicGuess)
+	const bool finalUseExtrinsics = !neverUseExtrinsicGuess && useExtrinsicGuess;
+	if (finalUseExtrinsics)
 	{
 		rvec_.copyTo(rvec);
 		tMatrix.copyTo(tvec);
@@ -27,7 +27,7 @@ void Camera::estimatePose(const std::vector<cv::Point3f>& list_points3d,        
 	}
 
 	const bool res = cv::solvePnPRansac(list_points3d, list_points2d, kMatrix, distCoeffs, rvec, tvec,
-		useExtrinsicGuess, iterationsCount, reprojectionError, confidence, inliers_idx, method);
+		finalUseExtrinsics, iterationsCount, reprojectionError, confidence, inliers_idx, method);
 
 	if (res)
 	{

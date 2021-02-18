@@ -5,6 +5,7 @@
 #include <opencv2/core.hpp>
 #include <opencv2/videoio.hpp>
 
+// Extended from https://docs.opencv.org/4.2.0/d4/d94/tutorial_camera_calibration.html
 class Settings
 {
 public:
@@ -81,6 +82,7 @@ public:
 	bool fixK4;                  // fix K4 distortion coefficient
 	bool fixK5;                  // fix K5 distortion coefficient
 	bool useKalmanFilter;		 // if to use Kalman Filter
+	bool neverUseExtrinsicGuess; // if never to use the extrinsic of last frame for the next frame
 
 	int cameraID;
 	std::vector<std::string> imageList;
