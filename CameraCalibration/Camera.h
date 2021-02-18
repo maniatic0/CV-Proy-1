@@ -112,7 +112,7 @@ public:
 	/// Get Camera's Instrinsic Matrix
 	/// </summary>
 	/// <returns></returns>
-	inline const cv::Mat& CameraMatrix() const
+	inline const cv::Mat& CameraIntrisicMatrix() const
 	{
 		return kMatrix;
 	}

@@ -41,6 +41,8 @@ void Settings::write(cv::FileStorage& fs) const
 		<< "Input" << input
 		<< "Use_Kalman" << useKalmanFilter
 		<< "Never_Extrinsic_Guess" << neverUseExtrinsicGuess
+		<< "Suppress_Blinking" << suppressBlinking
+		<< "Restart_Attemps" << restartAttemps
 		<< "}";
 }
 
@@ -83,6 +85,16 @@ void Settings::read(const cv::FileNode& node)
 	node["Fix_K5"] >> fixK5;
 	node["Use_Kalman"] >> useKalmanFilter;
 	node["Never_Extrinsic_Guess"] >> neverUseExtrinsicGuess;
+	const cv::FileNode suppressBlinkingNode = node["Suppress_Blinking"];
+	if (!suppressBlinkingNode.empty())
+	{
+		suppressBlinkingNode >> suppressBlinking;
+	}
+	else
+	{
+		suppressBlinking = false;
+	}
+	node["Restart_Attemps"] >> restartAttemps;
 
 	validate();
 }

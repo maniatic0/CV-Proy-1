@@ -78,7 +78,9 @@ int main(int argc, char* argv[])
 	cv::Mat cameraMatrixTemp, distCoeffsTemp;
 	cv::Mat rvecTemp, tvecTemp;
 	double rms = std::numeric_limits<double>::infinity();
-	double rmsTemp;
+	double rmsTemp = std::numeric_limits<double>::infinity();
+	int currRestarts = s.restartAttemps;
+	int currAttempts = s.nrFrames;
 	bool atLeastOneSuccesss = false;
 	size_t preImagePointsSize = imagePoints.size();
 	cv::Size imageSize;
@@ -92,7 +94,7 @@ int main(int argc, char* argv[])
 	const cv::Scalar GREEN(0, 255, 0); // BGR
 	const cv::Scalar BLUE(255, 0, 0); // BGR
 
-	const char ESC_KEY = 27;
+	constexpr char ESC_KEY = 27;
 
 	// For Axis Purposes
 	cv::Point3f origin(0, 0, 0);
@@ -153,6 +155,7 @@ int main(int argc, char* argv[])
 		//If we are capturing to calibrate and we have enough images to attempt to calibrate and we accepted a new image to try to calibrate
 		if (mode == CalibrationState::CAPTURING && imagePoints.size() >= 1 && preImagePointsSize < imagePoints.size())
 		{
+			--currAttempts;
 			const CalibrationResult res = calibrateAndSave(s, imageSize, cameraMatrixTemp, distCoeffsTemp, rvecTemp, tvecTemp, imagePoints, corners, grid_width,
 				release_object, rmsTemp, rms, !atLeastOneSuccesss);
 			if (res != CalibrationResult::FAILED)
@@ -169,19 +172,17 @@ int main(int argc, char* argv[])
 					if (imagePoints.size() >= (size_t)s.nrFrames)
 					{
 						// We are done by Number of Frames
-						mode = CalibrationState::CALIBRATED;
 						std::cout << "We are calibrated by Number of Frames!: " << imagePoints.size() << "/" << (size_t)s.nrFrames << std::endl;
 					}
 					else if (rms <= s.acceptableThreshold)
 					{
 						// We are done by Threshold
-						mode = CalibrationState::CALIBRATED;
 						std::cout << "We are calibrated by Threshold!: " << imagePoints.size() << "/" << (size_t)s.nrFrames << std::endl;
 					}
 					else
 					{
 						std::cout << "We improve the calibration!: " << imagePoints.size() << "/" << (size_t)s.nrFrames << std::endl;
-					}
+					}					
 				}
 				else
 				{
@@ -196,6 +197,30 @@ int main(int argc, char* argv[])
 			{
 				// mode = CalibrationState::DETECTION; // ?
 				std::cout << "We failed to calibrate!" << std::endl;
+			}
+
+			if (currRestarts >= 0)
+			{
+				if (currAttempts < 0)
+				{
+					--currRestarts;
+					currAttempts = s.nrFrames;
+					imagePoints.clear();
+					std::cout << "Restarting Calibration. Current RMS: " << rms << ". Attempt: " << currRestarts << std::endl;
+				}
+			}
+			else
+			{
+				if (atLeastOneSuccesss)
+				{
+					mode = CalibrationState::CALIBRATED;
+					std::cout << "We settle Calibration with RMS: " << rms << std::endl;
+				}
+				else
+				{
+					mode = s.inputType == Settings::InputType::IMAGE_LIST ? CalibrationState::CAPTURING : CalibrationState::DETECTION;
+					std::cout << "We failed to calibrate completly!" << std::endl;
+				}
 			}
 		}
 		preImagePointsSize = imagePoints.size();
@@ -426,7 +451,7 @@ int main(int argc, char* argv[])
 
 		}
 
-		if (blinkOutput)
+		if (!s.suppressBlinking && blinkOutput)
 		{
 			// Maybe turn off this, it is annoying
 			cv::bitwise_not(view, view);
@@ -438,11 +463,11 @@ int main(int argc, char* argv[])
 			cv::Mat temp = view.clone();
 			if (s.useFisheye)
 			{
-				cv::fisheye::undistortImage(temp, view, camera.CameraMatrix(), camera.DistCoeffs());
+				cv::fisheye::undistortImage(temp, view, camera.CameraIntrisicMatrix(), camera.DistCoeffs());
 			}
 			else
 			{
-				cv::undistort(temp, view, camera.CameraMatrix(), camera.DistCoeffs());
+				cv::undistort(temp, view, camera.CameraIntrisicMatrix(), camera.DistCoeffs());
 			}
 
 		}
@@ -466,6 +491,8 @@ int main(int argc, char* argv[])
 			mode = CalibrationState::CAPTURING;
 			imagePoints.clear();
 			rms = std::numeric_limits<double>::infinity();
+			currRestarts = s.restartAttemps;
+			currAttempts = s.nrFrames;
 		}
 
 		prevFrame = std::chrono::high_resolution_clock::now();
@@ -479,16 +506,16 @@ int main(int argc, char* argv[])
 		if (s.useFisheye)
 		{
 			cv::Mat newCamMat;
-			cv::fisheye::estimateNewCameraMatrixForUndistortRectify(camera.CameraMatrix(), camera.DistCoeffs(), imageSize,
+			cv::fisheye::estimateNewCameraMatrixForUndistortRectify(camera.CameraIntrisicMatrix(), camera.DistCoeffs(), imageSize,
 				cv::Matx33d::eye(), newCamMat, 1);
-			cv::fisheye::initUndistortRectifyMap(camera.CameraMatrix(), camera.DistCoeffs(), cv::Matx33d::eye(), newCamMat, imageSize,
+			cv::fisheye::initUndistortRectifyMap(camera.CameraIntrisicMatrix(), camera.DistCoeffs(), cv::Matx33d::eye(), newCamMat, imageSize,
 				CV_16SC2, map1, map2);
 		}
 		else
 		{
 			initUndistortRectifyMap(
-				camera.CameraMatrix(), camera.DistCoeffs(), cv::Mat(),
-				getOptimalNewCameraMatrix(camera.CameraMatrix(), camera.DistCoeffs(), imageSize, 1, imageSize, 0), imageSize,
+				camera.CameraIntrisicMatrix(), camera.DistCoeffs(), cv::Mat(),
+				getOptimalNewCameraMatrix(camera.CameraIntrisicMatrix(), camera.DistCoeffs(), imageSize, 1, imageSize, 0), imageSize,
 				CV_16SC2, map1, map2);
 		}
 

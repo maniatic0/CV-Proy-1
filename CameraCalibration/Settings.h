@@ -83,6 +83,8 @@ public:
 	bool fixK5;                  // fix K5 distortion coefficient
 	bool useKalmanFilter;		 // if to use Kalman Filter
 	bool neverUseExtrinsicGuess; // if never to use the extrinsic of last frame for the next frame
+	bool suppressBlinking;		 // If the blinking when capturing frames is to be suppresed
+	int restartAttemps;			 // The number of restarts to attempt before keeping a calibration value
 
 	int cameraID;
 	std::vector<std::string> imageList;
