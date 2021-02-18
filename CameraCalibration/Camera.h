@@ -18,7 +18,8 @@ public:
 	Camera(Settings s) : kMatrix(cv::Mat::zeros(3, 3, CV_64FC1)), rMatrix(cv::Mat::zeros(3, 3, CV_64FC1)),
 		tMatrix(cv::Mat::zeros(3, 1, CV_64FC1)), pMatrix(cv::Mat::zeros(3, 4, CV_64FC1)), world2View(cv::Mat::zeros(3, 4, CV_64FC1)), useExtrinsicGuess(false),
 		measurements(cv::Mat::zeros(nMeasurements, 1, CV_64FC1)), rMatrixKalman(cv::Mat::zeros(3, 3, CV_64FC1)), tMatrixKalman(cv::Mat::zeros(3, 1, CV_64FC1)),
-		useKalmanFilter(s.useKalmanFilter), expectedDtKalman((double)s.delayUpdate * 1e-3 / (double)CLOCKS_PER_SEC), neverUseExtrinsicGuess(s.neverUseExtrinsicGuess)
+		useKalmanFilter(s.useKalmanFilter), expectedDtKalman((double)s.delayUpdate * 1e-3 / (double)CLOCKS_PER_SEC), neverUseExtrinsicGuess(s.neverUseExtrinsicGuess),
+		minInliersKalman(s.boardSize.height * s.boardSize.width / 3)
 	{
 		ResetKalmanFilter();
 	}
@@ -201,7 +202,7 @@ private:
 	cv::SolvePnPMethod method = cv::SOLVEPNP_EPNP;
 
 	// Kalman Filter parameters
-	cv::KalmanFilter KF;			// instantiate Kalman Filter
+	cv::KalmanFilter KF;			// Kalman Filter
 	int nStates = 18;				// the number of states
 	int nMeasurements = 6;			// the number of measured states
 	int nInputs = 0;				// the number of action control

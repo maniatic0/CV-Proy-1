@@ -1,8 +1,3 @@
-#include "CameraCalibration.h"
-#include "Settings.h"
-#include "Camera.h"
-#include "ZBuffer.h"
-
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -18,44 +13,20 @@
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
 
+#include "CameraCalibration.h"
+#include "Settings.h"
+#include "Camera.h"
+#include "ZBuffer.h"
+
 // Based on https://docs.opencv.org/4.2.0/d4/d94/tutorial_camera_calibration.html
-
-using namespace cv;
-using namespace std;
-
-constexpr float depthClean = std::numeric_limits<double>::infinity();
-
-inline void resetTempBuffers(const cv::Mat& view, const cv::Mat& depth, cv::Mat& colorTemp, cv::Mat& depthTemp)
-{
-	colorTemp.create(view.rows, view.cols, view.type());
-	colorTemp.setTo(Scalar(0, 0, 0));
-
-	depthTemp.create(view.rows, view.cols, depth.type());
-	depthTemp.setTo(Scalar(depthClean));
-}
-
-inline void zBuffering(cv::Mat &view, cv::Mat& depth, const cv::Mat& colorTemp, const cv::Mat& depthTemp)
-{
-	for (int i = 0; i < view.rows; i++)
-	{
-		for (int j = 0; j < view.cols; j++)
-		{
-			if (depthTemp.at<float>(i, j) < depth.at<float>(i, j))
-			{
-				view.at<Vec3b>(i, j) = colorTemp.at<Vec3b>(i, j);
-				depth.at<float>(i, j) = depthTemp.at<float>(i, j);
-			}
-		}
-	}
-}
 
 int main(int argc, char* argv[])
 {
-	const String keys
+	const cv::String keys
 		= "{help h usage ? |           | print this message            }"
 		"{@settings      |default.xml| input setting file            }"
 		"{winSize        | 11        | Half of search window for cornerSubPix }";
-	CommandLineParser parser(argc, argv, keys);
+	cv::CommandLineParser parser(argc, argv, keys);
 	parser.about("This is a camera calibration sample.\n"
 		"Usage: camera_calibration [configuration_file -- default ./default.xml]\n"
 		"Near the sample file you'll find the configuration file, which has detailed help of "
@@ -72,18 +43,18 @@ int main(int argc, char* argv[])
 
 	Settings s;
 	{
-		const string inputSettingsFile = parser.get<string>(0);
-		FileStorage fs(inputSettingsFile, FileStorage::READ); // Read the settings
+		const std::string inputSettingsFile = parser.get<std::string>(0);
+		cv::FileStorage fs(inputSettingsFile, cv::FileStorage::READ); // Read the settings
 		if (!fs.isOpened())
 		{
-			cout << "Could not open the configuration file: \"" << inputSettingsFile << "\"" << endl;
+			std::cout << "Could not open the configuration file: \"" << inputSettingsFile << "\"" << std::endl;
 			parser.printMessage();
 			return -1;
 		}
 		if (!Settings::readFromFile(fs, s))
 		{
 			fs.release(); // close Settings file
-			cout << "Invalid input detected. Application stopping. " << endl;
+			std::cout << "Invalid input detected. Application stopping. " << std::endl;
 			return -1;
 		}
 		fs.release(); // close Settings file
@@ -103,47 +74,67 @@ int main(int argc, char* argv[])
 	// Render stuff
 	Camera camera(s);
 	cv::Mat inliers;
-	vector<vector<Point2f> > imagePoints;
-	Mat cameraMatrixTemp, distCoeffsTemp;
-	Mat rvecTemp, tvecTemp;
+	std::vector<std::vector<cv::Point2f> > imagePoints;
+	cv::Mat cameraMatrixTemp, distCoeffsTemp;
+	cv::Mat rvecTemp, tvecTemp;
 	double rms = std::numeric_limits<double>::infinity();
 	double rmsTemp;
 	bool atLeastOneSuccesss = false;
 	size_t preImagePointsSize = imagePoints.size();
-	Size imageSize;
+	cv::Size imageSize;
 	CalibrationState mode = s.inputType == Settings::InputType::IMAGE_LIST ? CalibrationState::CAPTURING : CalibrationState::DETECTION;
 	clock_t prevTimestamp = 0;
 	std::chrono::time_point<std::chrono::high_resolution_clock> prevFrame = std::chrono::high_resolution_clock::now();
 	std::chrono::time_point<std::chrono::high_resolution_clock> startAnimTime = std::chrono::high_resolution_clock::now();
 	double dt;
 	double animTime = 0;
-	const Scalar RED(0, 0, 255), GREEN(0, 255, 0), BLUE(255, 0, 0); // BGR
+	const cv::Scalar RED(0, 0, 255); // BGR
+	const cv::Scalar GREEN(0, 255, 0); // BGR
+	const cv::Scalar BLUE(255, 0, 0); // BGR
 
 	const char ESC_KEY = 27;
 
 	// For Axis Purposes
-	Point3f origin(0, 0, 0);
+	cv::Point3f origin(0, 0, 0);
 	int axisThickness = 3;
 	float axisMultiplier = 4.0f;
-	Point3f xAxis(s.squareSize * axisMultiplier, 0, 0);
-	Point3f yAxis(0, s.squareSize * axisMultiplier, 0);
-	Point3f zAxis(0, 0, s.squareSize * axisMultiplier);
+	cv::Point3f xAxis(s.squareSize * axisMultiplier, 0, 0);
+	cv::Point3f yAxis(0, s.squareSize * axisMultiplier, 0);
+	cv::Point3f zAxis(0, 0, s.squareSize * axisMultiplier);
 	float axisTextOffset = 2.0f;
-	Point3f xAxisText(s.squareSize * axisMultiplier + axisTextOffset, 0, 0);
-	Point3f yAxisText(0, s.squareSize * axisMultiplier + axisTextOffset, 0);
-	Point3f zAxisText(0, 0, s.squareSize * axisMultiplier + axisTextOffset);
+	cv::Point3f xAxisText(s.squareSize * axisMultiplier + axisTextOffset, 0, 0);
+	cv::Point3f yAxisText(0, s.squareSize * axisMultiplier + axisTextOffset, 0);
+	cv::Point3f zAxisText(0, 0, s.squareSize * axisMultiplier + axisTextOffset);
 
 	// For Cube
-	vector<Point3d> points;
-	points.push_back(Point3d(0, 0, 0));
-	points.push_back(Point3d(0, s.squareSize * 2.0f, 0));
-	points.push_back(Point3d(0, s.squareSize * 2.0f, s.squareSize * 2.0f));
-	points.push_back(Point3d(0, 0, s.squareSize * 2.0f));
-	points.push_back(Point3d(s.squareSize * 2.0f, 0, 0));
-	points.push_back(Point3d(s.squareSize * 2.0f, s.squareSize * 2.0f, 0));
-	points.push_back(Point3d(s.squareSize * 2.0f, s.squareSize * 2.0f, s.squareSize * 2.0f));
-	points.push_back(Point3d(s.squareSize * 2.0f, 0, s.squareSize * 2.0f));
-	cv:Scalar cubeColor = Scalar(0, 255, 255);
+	std::vector<cv::Point3f> points =
+	{
+		cv::Point3f(0, 0, 0),
+		cv::Point3f(0, s.squareSize * 2.0f, 0),
+		cv::Point3f(0, s.squareSize * 2.0f, s.squareSize * 2.0f),
+		cv::Point3f(0, 0, s.squareSize * 2.0f),
+		cv::Point3f(s.squareSize * 2.0f, 0, 0),
+		cv::Point3f(s.squareSize * 2.0f, s.squareSize * 2.0f, 0),
+		cv::Point3f(s.squareSize * 2.0f, s.squareSize * 2.0f, s.squareSize * 2.0f),
+		cv::Point3f(s.squareSize * 2.0f, 0, s.squareSize * 2.0f)
+	};
+	const size_t cubeLinesNumber = 12;
+	constexpr int cubeLines[cubeLinesNumber][2] =
+	{
+		{0, 1},
+		{1, 2},
+		{2, 3},
+		{3, 0},
+		{0, 4},
+		{1, 5},
+		{2, 6},
+		{3, 7},
+		{4, 5},
+		{5, 6},
+		{6, 7},
+		{7, 4}
+	};
+	const cv::Scalar cubeColor(0, 255, 255);
 	int cubeThickness = 7;
 
 	// Poor man Z Buffering. Everything is a transparency
@@ -157,7 +148,7 @@ int main(int argc, char* argv[])
 		bool blinkOutput = false;
 
 		zBuffer.setColor(s.nextImage());
-		Mat &view = zBuffer.getColor();
+		cv::Mat &view = zBuffer.getColor();
 
 		//If we are capturing to calibrate and we have enough images to attempt to calibrate and we accepted a new image to try to calibrate
 		if (mode == CalibrationState::CAPTURING && imagePoints.size() >= 1 && preImagePointsSize < imagePoints.size())
@@ -258,27 +249,27 @@ int main(int argc, char* argv[])
 		}
 
 		//! [find_pattern]
-		vector<Point2f> pointBuf;
+		std::vector<cv::Point2f> pointBuf;
 
 		bool found;
 
-		int chessBoardFlags = CALIB_CB_ADAPTIVE_THRESH | CALIB_CB_NORMALIZE_IMAGE;
+		int chessBoardFlags = cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE;
 
 		if (!s.useFisheye) {
 			// fast check erroneously fails with high distortions like fisheye
-			chessBoardFlags |= CALIB_CB_FAST_CHECK;
+			chessBoardFlags |= cv::CALIB_CB_FAST_CHECK;
 		}
 
 		switch (s.calibrationPattern) // Find feature points on the input format
 		{
 		case Settings::Pattern::CHESSBOARD:
-			found = findChessboardCorners(view, s.boardSize, pointBuf, chessBoardFlags);
+			found = cv::findChessboardCorners(view, s.boardSize, pointBuf, chessBoardFlags);
 			break;
 		case Settings::Pattern::CIRCLES_GRID:
-			found = findCirclesGrid(view, s.boardSize, pointBuf);
+			found = cv::findCirclesGrid(view, s.boardSize, pointBuf);
 			break;
 		case Settings::Pattern::ASYMMETRIC_CIRCLES_GRID:
-			found = findCirclesGrid(view, s.boardSize, pointBuf, CALIB_CB_ASYMMETRIC_GRID);
+			found = cv::findCirclesGrid(view, s.boardSize, pointBuf, cv::CALIB_CB_ASYMMETRIC_GRID);
 			break;
 		default:
 			found = false;
@@ -288,17 +279,17 @@ int main(int argc, char* argv[])
 		//! [pattern_found]
 		if (found)                // If done with success,
 		{
-			// improve the found corners' coordinate accuracy for chessboard
+			// chessboard found corners can be improved with a solver. It requires everything in black and white
 			if (s.calibrationPattern == Settings::Pattern::CHESSBOARD)
 			{
-				Mat viewGray;
-				cvtColor(view, viewGray, COLOR_BGR2GRAY);
-				cornerSubPix(viewGray, pointBuf, Size(winSize, winSize),
-					Size(-1, -1), TermCriteria(TermCriteria::EPS + TermCriteria::COUNT, 30, 0.0001));
+				cv::Mat viewGray;
+				cvtColor(view, viewGray, cv::COLOR_BGR2GRAY);
+				cornerSubPix(viewGray, pointBuf, cv::Size(winSize, winSize),
+					cv::Size(-1, -1), cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.0001));
 			}
 
 			// Draw the corners.
-			drawChessboardCorners(view, s.boardSize, Mat(pointBuf), found);
+			drawChessboardCorners(view, s.boardSize, cv::Mat(pointBuf), found);
 
 			switch (mode)
 			{
@@ -334,10 +325,9 @@ int main(int argc, char* argv[])
 					zBuffer.drawLine(ori, zAxis2d, BLUE, axisThickness);
 				}
 				
-
 				{
 					// Cube Drawing
-					vector<Point3f> cube;
+					std::vector<cv::Point3f> cube;
 					for (const auto &p : points) {
 						cube.push_back(camera.projectPoint(p));
 					}
@@ -346,43 +336,28 @@ int main(int argc, char* argv[])
 						// Poor's man Z-Buffering
 						zBuffer.prepareTempBuffers();
 
-						const Point3f& p0 = cube.at(4);
-						const Point3f& p1 = cube.at(5);
-						const Point3f& p2 = cube.at(6);
-						const Point3f& p3 = cube.at(7);
+						const cv::Point3f& p0 = cube.at(4);
+						const cv::Point3f& p1 = cube.at(5);
+						const cv::Point3f& p2 = cube.at(6);
+						const cv::Point3f& p3 = cube.at(7);
 						const float pDepth = (std::min(p0.z, p1.z), std::min(p2.z, p3.z)); // Poor's man approximation
 
-						const Point2f p02d = Point2f(p0.x, p0.y);
-						const Point2f p12d = Point2f(p1.x, p1.y);
-						const Point2f p22d = Point2f(p2.x, p2.y);
-						const Point2f p32d = Point2f(p3.x, p3.y);
+						const cv::Point2f p02d = cv::Point2f(p0.x, p0.y);
+						const cv::Point2f p12d = cv::Point2f(p1.x, p1.y);
+						const cv::Point2f p22d = cv::Point2f(p2.x, p2.y);
+						const cv::Point2f p32d = cv::Point2f(p3.x, p3.y);
 
-						const Point facePoints[1][4] = { { p02d , p12d, p22d, p32d } };
-						const Point* ppt[1] = { facePoints[0] };
+						const cv::Point facePoints[1][4] = { { p02d , p12d, p22d, p32d } };
+						const cv::Point* ppt[1] = { facePoints[0] };
 						int npt[] = { 4 };
 
-						cv::fillPoly(zBuffer.getColorTemp(), ppt, npt, 1, cubeColor, LINE_8);
-						cv::fillPoly(zBuffer.getDepthTemp(), ppt, npt, 1, Scalar(pDepth), LINE_8);
+						cv::fillPoly(zBuffer.getColorTemp(), ppt, npt, 1, cubeColor, cv::LINE_8);
+						cv::fillPoly(zBuffer.getDepthTemp(), ppt, npt, 1, cv::Scalar(pDepth), cv::LINE_8);
 
 						zBuffer.drawTempBuffers();
 					}
 
-					constexpr int cubeLines[12][2] =
-					{
-						{0, 1},
-						{1, 2},
-						{2, 3},
-						{3, 0},
-						{0, 4},
-						{1, 5},
-						{2, 6},
-						{3, 7},
-						{4, 5},
-						{5, 6},
-						{6, 7},
-						{7, 4}
-					};
-					for (size_t i = 0; i < 12; i++)
+					for (size_t i = 0; i < cubeLinesNumber; i++)
 					{
 						zBuffer.drawLine(cube.at(cubeLines[i][0]), cube.at(cubeLines[i][1]), cubeColor, cubeThickness);
 					}
@@ -415,70 +390,66 @@ int main(int argc, char* argv[])
 				break;
 			}
 		}
-		//! [pattern_found]
-		//----------------------------- Output Text ------------------------------------------------
-		//! [output_text]
-		string msg = (mode == CalibrationState::CAPTURING) ? "100/100" :
-			mode == CalibrationState::CALIBRATED ? "Calibrated" : "Press 'g' to start";
+		
+		// Draw Text above everything
+		std::string msg = (mode == CalibrationState::CAPTURING) ? "100/100" : mode == CalibrationState::CALIBRATED ? "Calibrated" : "Press 'g' to start";
 		int baseLine = 0;
-		Size textSize = getTextSize(msg, 1, 1, 1, &baseLine);
-		Point textOrigin(view.cols - 2 * textSize.width - 10, view.rows - 2 * baseLine - 10);
+		cv::Size textSize = cv::getTextSize(msg, 1, 1, 1, &baseLine);
+		cv::Point textOrigin(view.cols - 2 * textSize.width - 10, view.rows - 2 * baseLine - 10);
 
 		if (mode == CalibrationState::CAPTURING)
 		{
 			if (s.showUndistorsed)
 			{
-				msg = format("%d/%d Undist", (int)imagePoints.size(), s.nrFrames);
+				msg = cv::format("%d/%d Undist", (int)imagePoints.size(), s.nrFrames);
 			}
 			else
 			{
-				msg = format("%d/%d Dist", (int)imagePoints.size(), s.nrFrames);
+				msg = cv::format("%d/%d Dist", (int)imagePoints.size(), s.nrFrames);
 			}
 		}
 
-		putText(view, msg, textOrigin, 1, 1, mode == CalibrationState::CALIBRATED ? GREEN : RED);
+		cv::putText(view, msg, textOrigin, 1, 1, mode == CalibrationState::CALIBRATED ? GREEN : RED);
 
-		string msg2 = format("Frame %llf ms", dt);
-		Point secsOrigin(view.cols - 2 * textSize.width - 10, view.rows - 4 * baseLine - 10);
-		putText(view, msg2, secsOrigin, 1, 1, mode == CalibrationState::CALIBRATED ? GREEN : RED);
+		std::string msg2 = cv::format("Frame %llf ms", dt);
+		cv::Point secsOrigin(view.cols - 2 * textSize.width - 10, view.rows - 4 * baseLine - 10);
+		cv::putText(view, msg2, secsOrigin, 1, 1, mode == CalibrationState::CALIBRATED ? GREEN : RED);
 
 		if (mode == CalibrationState::CALIBRATED)
 		{
 			if (found)
 			{
-				putText(view, "x", camera.projectPointNoDepth(xAxisText), 1, 3, RED, 3);
-				putText(view, "y", camera.projectPointNoDepth(yAxisText), 1, 3, GREEN, 3);
-				putText(view, "z", camera.projectPointNoDepth(zAxisText), 1, 3, BLUE, 3);
+				cv::putText(view, "x", camera.projectPointNoDepth(xAxisText), 1, 3, RED, 3);
+				cv::putText(view, "y", camera.projectPointNoDepth(yAxisText), 1, 3, GREEN, 3);
+				cv::putText(view, "z", camera.projectPointNoDepth(zAxisText), 1, 3, BLUE, 3);
 			}
 
 		}
 
 		if (blinkOutput)
 		{
-			bitwise_not(view, view);
+			// Maybe turn off this, it is annoying
+			cv::bitwise_not(view, view);
 		}
 
-		//! [output_text]
-		//------------------------- Video capture  output  undistorted ------------------------------
-		//! [output_undistorted]
+		// Show the result undistorted (this doesn't matter if distortion coefficients are null)
 		if (mode == CalibrationState::CALIBRATED && s.showUndistorsed)
 		{
-			Mat temp = view.clone();
+			cv::Mat temp = view.clone();
 			if (s.useFisheye)
 			{
 				cv::fisheye::undistortImage(temp, view, camera.CameraMatrix(), camera.DistCoeffs());
 			}
 			else
 			{
-				undistort(temp, view, camera.CameraMatrix(), camera.DistCoeffs());
+				cv::undistort(temp, view, camera.CameraMatrix(), camera.DistCoeffs());
 			}
 
 		}
-		//! [output_undistorted]
-		//------------------------------ Show image and check for input commands -------------------
-		//! [await_input]
+
+		// Input
 		imshow("Image View", view);
-		char key = (char)waitKey(s.inputCapture.isOpened() ? 50 : s.delay);
+		char key = (char)cv::waitKey(s.inputCapture.isOpened() ? 50 : s.delay); // in ms
 
 		if (key == ESC_KEY)
 		{
@@ -496,42 +467,41 @@ int main(int argc, char* argv[])
 			imagePoints.clear();
 			rms = std::numeric_limits<double>::infinity();
 		}
-		//! [await_input]
+
 		prevFrame = std::chrono::high_resolution_clock::now();
 	}
 
-	// -----------------------Show the undistorted image for the image list ------------------------
-	//! [show_results]
+	// show undistorted images for image lists
 	if (s.inputType == Settings::InputType::IMAGE_LIST && s.showUndistorsed)
 	{
-		Mat view, rview, map1, map2;
+		cv::Mat view, rview, map1, map2;
 
 		if (s.useFisheye)
 		{
-			Mat newCamMat;
-			fisheye::estimateNewCameraMatrixForUndistortRectify(camera.CameraMatrix(), camera.DistCoeffs(), imageSize,
-				Matx33d::eye(), newCamMat, 1);
-			fisheye::initUndistortRectifyMap(camera.CameraMatrix(), camera.DistCoeffs(), Matx33d::eye(), newCamMat, imageSize,
+			cv::Mat newCamMat;
+			cv::fisheye::estimateNewCameraMatrixForUndistortRectify(camera.CameraMatrix(), camera.DistCoeffs(), imageSize,
+				cv::Matx33d::eye(), newCamMat, 1);
+			cv::fisheye::initUndistortRectifyMap(camera.CameraMatrix(), camera.DistCoeffs(), cv::Matx33d::eye(), newCamMat, imageSize,
 				CV_16SC2, map1, map2);
 		}
 		else
 		{
 			initUndistortRectifyMap(
-				camera.CameraMatrix(), camera.DistCoeffs(), Mat(),
+				camera.CameraMatrix(), camera.DistCoeffs(), cv::Mat(),
 				getOptimalNewCameraMatrix(camera.CameraMatrix(), camera.DistCoeffs(), imageSize, 1, imageSize, 0), imageSize,
 				CV_16SC2, map1, map2);
 		}
 
 		for (size_t i = 0; i < s.imageList.size(); i++)
 		{
-			view = imread(s.imageList[i], IMREAD_COLOR);
+			view = cv::imread(s.imageList[i], cv::IMREAD_COLOR);
 			if (view.empty()) {
 				continue;
 			}
 
-			remap(view, rview, map1, map2, INTER_LINEAR);
-			imshow("Image View", rview);
-			char c = (char)waitKey();
+			cv::remap(view, rview, map1, map2, cv::INTER_LINEAR);
+			cv::imshow("Image View", rview);
+			char c = (char)cv::waitKey();
 			if (c == ESC_KEY || c == 'q' || c == 'Q')
 			{
 				break;

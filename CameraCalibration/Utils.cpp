@@ -1,5 +1,7 @@
 #include "Utils.h"
 
+// From https://github.com/opencv/opencv/blob/master/samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/src/Utils.cpp
+
 cv::Mat rot2euler(const cv::Mat& rotationMatrix)
 {
     cv::Mat euler(3, 1, CV_64F);

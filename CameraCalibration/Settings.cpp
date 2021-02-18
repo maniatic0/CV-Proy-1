@@ -5,6 +5,8 @@
 #include <opencv2/calib3d.hpp>
 #include <opencv2/imgcodecs.hpp>
 
+// Extended from https://docs.opencv.org/4.2.0/d4/d94/tutorial_camera_calibration.html
+
 void Settings::write(cv::FileStorage& fs) const
 {
 

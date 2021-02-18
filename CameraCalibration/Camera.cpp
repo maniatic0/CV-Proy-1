@@ -97,7 +97,7 @@ void Camera::resetKalmanFilter(cv::KalmanFilter& KF, int nStates, int nMeasureme
 	cv::setIdentity(KF.processNoiseCov, cv::Scalar::all(1e-5));       // set process noise
 	cv::setIdentity(KF.measurementNoiseCov, cv::Scalar::all(1e-4));   // set measurement noise
 	cv::setIdentity(KF.errorCovPost, cv::Scalar::all(1));             // error covariance
-				   /* DYNAMIC MODEL */
+	/* Kalman Model from tutorial*/
 	//  [1 0 0 dt  0  0 dt2   0   0 0 0 0  0  0  0   0   0   0]
 	//  [0 1 0  0 dt  0   0 dt2   0 0 0 0  0  0  0   0   0   0]
 	//  [0 0 1  0  0 dt   0   0 dt2 0 0 0  0  0  0   0   0   0]
@@ -155,7 +155,7 @@ void Camera::updateKalmanFilter(cv::KalmanFilter& KF, cv::Mat& measurement, doub
 	updateKalmanFilterDt(KF, dt);
 
 	// First predict, to update the internal statePre variable
-	cv::Mat prediction = KF.predict();
+	KF.predict();
 	// The "correct" phase that is going to use the predicted value and our measurement
 	cv::Mat estimated = KF.correct(measurement);
 	// Estimated translation
