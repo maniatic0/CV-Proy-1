@@ -13,7 +13,7 @@ enum class CalibrationState { DETECTION = 0, CAPTURING = 1, CALIBRATED = 2 };
 /// <summary>
 /// Result of the Calibration
 /// </summary>
-enum class CalibrationResult {FAILED = 0, SUCCESS = 1, WORSE = 2};
+enum class CalibrationResult { FAILED = 0, SUCCESS = 1, WORSE = 2 };
 
 /// <summary>
 /// Run a calibration run and save if it is considered better by RMSE
@@ -32,7 +32,7 @@ enum class CalibrationResult {FAILED = 0, SUCCESS = 1, WORSE = 2};
 /// <param name="rmsPrev">RMSE of the previous calibration (used to reject worse calibrations)</param>
 /// <param name="saveIgnoreRms">If the RMSE rejection of worse calibrations is to be ignored</param>
 /// <returns>Result of the Calbiration</returns>
-CalibrationResult runCalibrationAndSave(const Settings& s, const cv::Size imageSize, cv::Mat& cameraMatrix, cv::Mat& distCoeffs,
+CalibrationResult calibrateAndSave(const Settings& s, const cv::Size imageSize, cv::Mat& cameraMatrix, cv::Mat& distCoeffs,
 	cv::Mat& rvec, cv::Mat& tvec,
 	const std::vector<std::vector<cv::Point2f> >& imagePoints, const std::vector<cv::Point3f>& corners, const float grid_width, const bool release_object,
 	double& rms, double rmsPrev = std::numeric_limits<double>::infinity(), const bool saveIgnoreRms = true);

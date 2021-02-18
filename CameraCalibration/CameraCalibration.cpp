@@ -7,8 +7,21 @@
 
 #include "Settings.h"
 
-//! [compute_errors]
-static double computeReprojectionErrors(const std::vector<std::vector<cv::Point3f> >& objectPoints,
+// Based on https://docs.opencv.org/4.2.0/d4/d94/tutorial_camera_calibration.html
+
+/// <summary>
+/// Compute Projection errors from the world coords of the points vs the obtained world coords
+/// </summary>
+/// <param name="objectPoints">Orignal World Coordinates</param>
+/// <param name="imagePoints"></param>
+/// <param name="rvecs">Camera's Rotation Quaternion</param>
+/// <param name="tvecs">Camera's Translation Vector</param>
+/// <param name="cameraMatrix">Camera's Intrinsic Matrix</param>
+/// <param name="distCoeffs">Camera's Distortion Coefficients</param>
+/// <param name="perViewErrors">Output errors per processed colorBuff</param>
+/// <param name="fisheye">If to use fish eye</param>
+/// <returns>Summed error of all views</returns>
+static double computeProjectionErrors(const std::vector<std::vector<cv::Point3f> >& objectPoints,
 	const std::vector<std::vector<cv::Point2f> >& imagePoints,
 	const std::vector<cv::Mat>& rvecs, const std::vector<cv::Mat>& tvecs,
 	const cv::Mat& cameraMatrix, const cv::Mat& distCoeffs,
@@ -40,9 +53,8 @@ static double computeReprojectionErrors(const std::vector<std::vector<cv::Point3
 
 	return std::sqrt(totalErr / totalPoints);
 }
-//! [compute_errors]
 
-//! [board_corners]
+
 void calcBoardCornerPositions(const cv::Size boardSize, const float squareSize, std::vector<cv::Point3f>& corners,
 	const Settings::Pattern patternType)
 {
@@ -79,21 +91,39 @@ void calcBoardCornerPositions(const cv::Size boardSize, const float squareSize, 
 		break;
 	}
 }
-//! [board_corners]
 
-static bool runCalibration(const Settings& s, const cv::Size& imageSize, cv::Mat& cameraMatrix, cv::Mat& distCoeffs,
+/// <summary>
+/// Calibrate the camera
+/// </summary>
+/// <param name="s">Settings</param>
+/// <param name="imageSize">Image Size</param>
+/// <param name="cameraMatrix">Output Camera's Intrinsic Matrix</param>
+/// <param name="distCoeffs">Output Camera's Distortion Parameters</param>
+/// <param name="imagePoints">2D image points detected</param>
+/// <param name="corners">3D position</param>
+/// <param name="rvecs">Output Per colorBuff Camera's Rotation Quaternions</param>
+/// <param name="tvecs">Output Per colorBuff Camera's Translation Vectors</param>
+/// <param name="projErrs">Per colorBuff Projection Errors</param>
+/// <param name="totalAvgErr">Average projection error between all the views</param>
+/// <param name="rms">RMS Error from the calibration function</param>
+/// <param name="newObjPoints">Expected 3D World position of corners according to the calibration</param>
+/// <param name="grid_width">Grid Witdh (could be an approximation)</param>
+/// <param name="release_object">If Grid Witdh is precise</param>
+/// <returns>If the calibration worked</returns>
+static bool calibrate(const Settings& s, const cv::Size& imageSize, cv::Mat& cameraMatrix, cv::Mat& distCoeffs,
 	const std::vector<std::vector<cv::Point2f> >& imagePoints, const std::vector<cv::Point3f>& corners,
 	std::vector<cv::Mat>& rvecs, std::vector<cv::Mat>& tvecs,
-	std::vector<float>& reprojErrs, double& totalAvgErr, double& rms, std::vector<cv::Point3f>& newObjPoints,
+	std::vector<float>& projErrs, double& totalAvgErr, double& rms, std::vector<cv::Point3f>& newObjPoints,
 	float grid_width, bool release_object)
 {
-	//! [fixed_aspect]
+	// If the aspect ratio is fixed
 	cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
 	if (s.flag & cv::CALIB_FIX_ASPECT_RATIO)
 	{
 		cameraMatrix.at<double>(0, 0) = s.aspectRatio;
 	}
-	//! [fixed_aspect]
+
+	// If we use fisheye
 	if (s.useFisheye) {
 		distCoeffs = cv::Mat::zeros(4, 1, CV_64F);
 	}
@@ -103,14 +133,15 @@ static bool runCalibration(const Settings& s, const cv::Size& imageSize, cv::Mat
 
 	std::vector<std::vector<cv::Point3f> > objectPoints(1);
 	objectPoints[0] = corners;
-	objectPoints[0][(size_t)(s.boardSize.width) - 1].x = objectPoints[0][0].x + grid_width;
+	objectPoints[0][(size_t)(s.boardSize.width) - 1].x = objectPoints[0][0].x + grid_width; // Here we fix the corner to the real distance for the special optimizer (if we know where it is)
 	newObjPoints = objectPoints[0];
 
+	// Copy board position per colorBuff we process
 	objectPoints.resize(imagePoints.size(), objectPoints[0]);
 
 	//Find intrinsic and extrinsic camera parameters
-
 	if (s.useFisheye) {
+		// Fish eye uses a different function 
 		cv::Mat _rvecs, _tvecs;
 		rms = cv::fisheye::calibrate(objectPoints, imagePoints, imageSize, cameraMatrix, distCoeffs, _rvecs,
 			_tvecs, s.flag);
@@ -126,14 +157,17 @@ static bool runCalibration(const Settings& s, const cv::Size& imageSize, cv::Mat
 		int iFixedPoint = -1;
 		if (release_object)
 		{
+			// If we use the special optimizer we have to send which point we fixed with the real grid width
 			iFixedPoint = s.boardSize.width - 1;
 		}
 		rms = cv::calibrateCameraRO(objectPoints, imagePoints, imageSize, iFixedPoint,
 			cameraMatrix, distCoeffs, rvecs, tvecs, newObjPoints,
-			s.flag | cv::CALIB_USE_LU);
+			s.flag | cv::CALIB_USE_LU); // LU used because it is faster
 	}
 
+	// If we use the special optimizer based on knowing the grid width (really good and fast)
 	if (release_object) {
+		// Calculated grid corners from the optimizer
 		std::cout << "New board corners: " << std::endl;
 		std::cout << newObjPoints[0] << std::endl;
 		std::cout << newObjPoints[(size_t)(s.boardSize.width) - 1] << std::endl;
@@ -141,19 +175,33 @@ static bool runCalibration(const Settings& s, const cv::Size& imageSize, cv::Mat
 		std::cout << newObjPoints.back() << std::endl;
 	}
 
-	std::cout << "Re-projection error reported by calibrateCamera: " << rms << std::endl;
+	std::cout << "Projection RMS error reported by calibrateCamera: " << rms << std::endl;
 
-	bool ok = checkRange(cameraMatrix) && checkRange(distCoeffs);
+	// Check that we got something that makes sense
+	const bool ok = cv::checkRange(cameraMatrix) && cv::checkRange(distCoeffs);
 
+	// Get error of each colorBuff
 	objectPoints.clear();
 	objectPoints.resize(imagePoints.size(), newObjPoints);
-	totalAvgErr = computeReprojectionErrors(objectPoints, imagePoints, rvecs, tvecs, cameraMatrix,
-		distCoeffs, reprojErrs, s.useFisheye);
+	totalAvgErr = computeProjectionErrors(objectPoints, imagePoints, rvecs, tvecs, cameraMatrix,
+		distCoeffs, projErrs, s.useFisheye);
 
 	return ok;
 }
 
-// Print camera parameters to the output file
+/// <summary>
+/// Save Camera Parameters from the calibration
+/// </summary>
+/// <param name="s">Settings</param>
+/// <param name="imageSize">Image Size</param>
+/// <param name="cameraMatrix">Camera's Intrinsic Matrix</param>
+/// <param name="distCoeffs">Camera's Distortion Coefficients</param>
+/// <param name="rvecs">Camera's Rotation Quaternions per processed colorBuff</param>
+/// <param name="tvecs">Camera's Translation Vector per processed colorBuff</param>
+/// <param name="projErrs">Projection error per colorBuff</param>
+/// <param name="imagePoints">Image point used for the calibration</param>
+/// <param name="totalAvgErr">Average projection error between all the views</param>
+/// <param name="newObjPoints">Expected 3D position of corners</param>
 static void saveCameraParams(const Settings& s, const cv::Size& imageSize, const cv::Mat& cameraMatrix, const cv::Mat& distCoeffs,
 	const std::vector<cv::Mat>& rvecs, const std::vector<cv::Mat>& tvecs,
 	const std::vector<float>& reprojErrs, const std::vector<std::vector<cv::Point2f> >& imagePoints,
@@ -280,8 +328,8 @@ static void saveCameraParams(const Settings& s, const cv::Size& imageSize, const
 	}
 }
 
-//! [run_and_save]
-CalibrationResult runCalibrationAndSave(const Settings& s, const cv::Size imageSize, cv::Mat& cameraMatrix, cv::Mat& distCoeffs,
+
+CalibrationResult calibrateAndSave(const Settings& s, const cv::Size imageSize, cv::Mat& cameraMatrix, cv::Mat& distCoeffs,
 	cv::Mat& rvec, cv::Mat& tvec,
 	const std::vector<std::vector<cv::Point2f> >& imagePoints, const std::vector<cv::Point3f>& corners, const float grid_width, const bool release_object,
 	double& rms, double rmsPrev, const bool saveIgnoreRms)
@@ -292,13 +340,15 @@ CalibrationResult runCalibrationAndSave(const Settings& s, const cv::Size imageS
 	double totalAvgErr = 0;
 	std::vector<cv::Point3f> newObjPoints;
 
-	bool ok = runCalibration(s, imageSize, cameraMatrix, distCoeffs, imagePoints, corners, rvecs, tvecs, reprojErrs,
+	bool ok = calibrate(s, imageSize, cameraMatrix, distCoeffs, imagePoints, corners, rvecs, tvecs, reprojErrs,
 		totalAvgErr, rms, newObjPoints, grid_width, release_object);
 	std::cout << (ok ? "Calibration succeeded" : "Calibration failed")
-		<< ". avg re projection error = " << totalAvgErr << std::endl;
+		<< ". avg projection error = " << totalAvgErr << std::endl;
 
+	// Check for better RMS
 	bool betterRMS = rms < rmsPrev;
 
+	// Save if okay and better (or forced to)
 	if (ok && (saveIgnoreRms || betterRMS))
 	{
 		saveCameraParams(s, imageSize, cameraMatrix, distCoeffs, rvecs, tvecs, reprojErrs, imagePoints,
@@ -311,11 +361,12 @@ CalibrationResult runCalibrationAndSave(const Settings& s, const cv::Size imageS
 		return CalibrationResult::FAILED;
 	}
 
+	// Get the last rotation and translation to start the real time camera
 	if (rvecs.size() > 0)
 	{
 		rvecs[rvecs.size() - 1].copyTo(rvec);
 		tvecs[tvecs.size() - 1].copyTo(tvec);
-	}	
+	}
 
 	if (betterRMS)
 	{
@@ -331,4 +382,3 @@ CalibrationResult runCalibrationAndSave(const Settings& s, const cv::Size imageS
 	std::cout << "Converged to a worse Calibration: " << rms << " >= " << rmsPrev << std::endl;
 	return CalibrationResult::WORSE;
 }
-//! [run_and_save]

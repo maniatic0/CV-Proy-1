@@ -7,7 +7,7 @@
 void Camera::estimatePose(const std::vector<cv::Point3f>& list_points3d,        // list with model 3D coordinates
 	const std::vector<cv::Point2f>& list_points2d,        // list with scene 2D coordinates
 	const double dt,
-	cv::Mat& inliers_idx // irnliers id container
+	cv::Mat& inliers_idx // irnliers id container (from PnP)
 )
 {
 	cv::Mat rvec; // output rotation vector
@@ -64,7 +64,7 @@ void Camera::estimatePose(const std::vector<cv::Point3f>& list_points3d,        
 			preparePMat();
 		}
 	}
-	
+
 }
 
 void Camera::updateKalmanFilterDt(cv::KalmanFilter& KF, double dt)

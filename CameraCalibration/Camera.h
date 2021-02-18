@@ -144,10 +144,10 @@ public:
 	}
 
 	/// <summary>
-	/// Project a 3D Point in world space to 2D point in view space with Depth
+	/// Project a 3D Point in world space to 2D point in colorBuff space with Depth
 	/// </summary>
 	/// <param name="point">3D Point to Project</param>
-	/// <returns>2D Point with depth</returns>
+	/// <returns>2D Point with depthBuff</returns>
 	inline cv::Point3f projectPoint(const cv::Point3f& point)
 	{
 #if 0
@@ -182,7 +182,7 @@ public:
 
 
 	/// <summary>
-	/// Project a 3D Point in world space to 2D point in view space
+	/// Project a 3D Point in world space to 2D point in colorBuff space
 	/// </summary>
 	/// <param name="point">3D Point to Project</param>
 	/// <returns>2D Point</returns>
