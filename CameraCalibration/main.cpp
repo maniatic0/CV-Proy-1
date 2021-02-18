@@ -433,7 +433,15 @@ int main(int argc, char* argv[])
 
 		// Input
 		cv::imshow("Image View", view);
-		char key = (char)cv::waitKey(s.inputCapture.isOpened() ? 50 : s.delay); // in ms
+		char key;
+		if (mode == CalibrationState::Calibrated)
+		{
+			key = (char)cv::waitKey(s.inputCapture.isOpened() ? 50 : s.delayUpdate); // in ms
+		}
+		else
+		{
+			key  = (char)cv::waitKey(s.inputCapture.isOpened() ? 50 : s.delay); // in ms
+		} 
 
 		if (key == ESC_KEY)
 		{
