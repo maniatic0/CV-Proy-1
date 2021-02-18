@@ -21,7 +21,7 @@ void Settings::write(cv::FileStorage& fs) const
 	}
 
 
-	fs  << "Calibrate_NrOfFrameToUse" << nrFrames
+	fs << "Calibrate_NrOfFrameToUse" << nrFrames
 		<< "Acceptable_Threshold" << acceptableThreshold
 		<< "Calibrate_FixAspectRatio" << aspectRatio
 		<< "Calibrate_AssumeZeroTangentialDistortion" << calibZeroTangentDist
@@ -123,7 +123,7 @@ void Settings::validate()
 
 	if (input.empty())      // Check for valid input
 	{
-		inputType = InputType::INVALID;
+		inputType = InputType::Invalid;
 	}
 	else
 	{
@@ -131,37 +131,37 @@ void Settings::validate()
 		{
 			std::stringstream ss(input);
 			ss >> cameraID;
-			inputType = InputType::CAMERA;
+			inputType = InputType::Camera;
 		}
 		else
 		{
 			if (isListOfImages(input) && readStringList(input, imageList))
 			{
-				inputType = InputType::IMAGE_LIST;
+				inputType = InputType::Image_List;
 				nrFrames = (nrFrames < (int)imageList.size()) ? nrFrames : (int)imageList.size();
 			}
 			else
 			{
-				inputType = InputType::VIDEO_FILE;
+				inputType = InputType::Video_File;
 			}
 		}
 		switch (inputType)
 		{
-		case InputType::CAMERA:
+		case InputType::Camera:
 			inputCapture.open(cameraID);
 			break;
-		case InputType::VIDEO_FILE:
+		case InputType::Video_File:
 			inputCapture.open(input);
 			break;
 		default:
 			break;
 		}
-		if (inputType != InputType::IMAGE_LIST && !inputCapture.isOpened())
+		if (inputType != InputType::Image_List && !inputCapture.isOpened())
 		{
-			inputType = InputType::INVALID;
+			inputType = InputType::Invalid;
 		}
 	}
-	if (inputType == InputType::INVALID)
+	if (inputType == InputType::Invalid)
 	{
 		std::cerr << " Input does not exist: " << input;
 		goodInput = false;

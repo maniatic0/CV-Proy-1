@@ -9,7 +9,7 @@
   <Square_Size>22</Square_Size>
 
   <!-- Width of the Chessboard in some user defined metric system (pixel, millimeter)-->
-  <Grid_Width>175</Grid_Width>
+  <!--<Grid_Width>175</Grid_Width>-->
   
   <!-- The input to use for calibration. 
 		To use an input camera -> give the ID of the camera, like "1"

@@ -8,12 +8,12 @@
 /// <summary>
 /// Calibration State of the Camera
 /// </summary>
-enum class CalibrationState { DETECTION = 0, CAPTURING = 1, CALIBRATED = 2 };
+enum class CalibrationState { Detection = 0, Capturing = 1, Calibrated = 2 };
 
 /// <summary>
 /// Result of the Calibration
 /// </summary>
-enum class CalibrationResult { FAILED = 0, SUCCESS = 1, WORSE = 2 };
+enum class CalibrationResult { Failed = 0, Success = 1, Worse = 2 };
 
 /// <summary>
 /// Run a calibration run and save if it is considered better by RMSE

@@ -10,7 +10,11 @@ class Settings
 {
 public:
 	Settings() : goodInput(false) {}
-	enum class InputType { INVALID, CAMERA, VIDEO_FILE, IMAGE_LIST };
+
+	/// <summary>
+	/// Type of Input from Settings
+	/// </summary>
+	enum class InputType { Invalid, Camera, Video_File, Image_List };
 
 	//Write serialization for this class
 	void write(cv::FileStorage& fs) const;
@@ -22,7 +26,7 @@ public:
 	void validate();
 
 	/// <summary>
-	/// Next Image from Settings
+	/// Next Image from Settings Input
 	/// </summary>
 	/// <returns>Image</returns>
 	cv::Mat nextImage();

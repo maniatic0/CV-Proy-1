@@ -334,7 +334,7 @@ CalibrationResult calibrateAndSave(const Settings& s, const cv::Size imageSize, 
 	if (!ok)
 	{
 		std::cout << "Failed to Converge Calibration" << std::endl;
-		return CalibrationResult::FAILED;
+		return CalibrationResult::Failed;
 	}
 
 	// Get the last rotation and translation to start the real time camera
@@ -347,14 +347,14 @@ CalibrationResult calibrateAndSave(const Settings& s, const cv::Size imageSize, 
 	if (betterRMS)
 	{
 		std::cout << "Converged to a better Calibration: " << rms << " < " << rmsPrev << std::endl;
-		return CalibrationResult::SUCCESS;
+		return CalibrationResult::Success;
 	}
 	else if (saveIgnoreRms)
 	{
 		std::cout << "Converged to a worse Calibration but we forced to accept it: " << rms << " >= " << rmsPrev << std::endl;
-		return CalibrationResult::SUCCESS;
+		return CalibrationResult::Success;
 	}
 
 	std::cout << "Converged to a worse Calibration: " << rms << " >= " << rmsPrev << std::endl;
-	return CalibrationResult::WORSE;
+	return CalibrationResult::Worse;
 }

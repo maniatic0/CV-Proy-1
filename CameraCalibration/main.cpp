@@ -80,7 +80,7 @@ int main(int argc, char* argv[])
 	bool atLeastOneSuccesss = false;
 	size_t preImagePointsSize = imagePoints.size();
 	cv::Size imageSize;
-	CalibrationState mode = s.inputType == Settings::InputType::IMAGE_LIST ? CalibrationState::CAPTURING : CalibrationState::DETECTION;
+	CalibrationState mode = s.inputType == Settings::InputType::Image_List ? CalibrationState::Capturing : CalibrationState::Detection;
 	clock_t prevTimestamp = 0;
 	std::chrono::time_point<std::chrono::high_resolution_clock> prevFrame = std::chrono::high_resolution_clock::now();
 	std::chrono::time_point<std::chrono::high_resolution_clock> startAnimTime = std::chrono::high_resolution_clock::now();
@@ -142,22 +142,22 @@ int main(int argc, char* argv[])
 	{
 		dt = std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(std::chrono::high_resolution_clock::now() - prevFrame).count();
 
-		
+
 		bool blinkOutput = false;
 
 		zBuffer.setColor(s.nextImage());
-		cv::Mat &view = zBuffer.getColor();
+		cv::Mat& view = zBuffer.getColor();
 
 		//If we are capturing to calibrate and we have enough images to attempt to calibrate and we accepted a new image to try to calibrate
-		if (mode == CalibrationState::CAPTURING && imagePoints.size() >= 1 && preImagePointsSize < imagePoints.size())
+		if (mode == CalibrationState::Capturing && imagePoints.size() >= 1 && preImagePointsSize < imagePoints.size())
 		{
 			--currAttempts;
 			const CalibrationResult res = calibrateAndSave(s, imageSize, cameraMatrixTemp, distCoeffsTemp, rvecTemp, tvecTemp, imagePoints, corners, grid_width,
 				release_object, rmsTemp, rms, !atLeastOneSuccesss);
-			if (res != CalibrationResult::FAILED)
+			if (res != CalibrationResult::Failed)
 			{
 				atLeastOneSuccesss = true;
-				if (res == CalibrationResult::SUCCESS)
+				if (res == CalibrationResult::Success)
 				{
 					// We are better
 					rms = rmsTemp;
@@ -178,7 +178,7 @@ int main(int argc, char* argv[])
 					else
 					{
 						std::cout << "We improve the calibration!: " << imagePoints.size() << "/" << (size_t)s.nrFrames << std::endl;
-					}					
+					}
 				}
 				else
 				{
@@ -191,7 +191,7 @@ int main(int argc, char* argv[])
 			}
 			else
 			{
-				// mode = CalibrationState::DETECTION; // ?
+				// mode = CalibrationState::Detection; // ?
 				std::cout << "We failed to calibrate!" << std::endl;
 			}
 
@@ -209,12 +209,12 @@ int main(int argc, char* argv[])
 			{
 				if (atLeastOneSuccesss)
 				{
-					mode = CalibrationState::CALIBRATED;
+					mode = CalibrationState::Calibrated;
 					std::cout << "We settle Calibration with RMS: " << rms << std::endl;
 				}
 				else
 				{
-					mode = s.inputType == Settings::InputType::IMAGE_LIST ? CalibrationState::CAPTURING : CalibrationState::DETECTION;
+					mode = s.inputType == Settings::InputType::Image_List ? CalibrationState::Capturing : CalibrationState::Detection;
 					std::cout << "We failed to calibrate completly!" << std::endl;
 				}
 			}
@@ -227,10 +227,10 @@ int main(int argc, char* argv[])
 			{
 				const CalibrationResult res = calibrateAndSave(s, imageSize, cameraMatrixTemp, distCoeffsTemp, rvecTemp, tvecTemp, imagePoints, corners, grid_width,
 					release_object, rmsTemp, rms, !atLeastOneSuccesss);
-				if (res != CalibrationResult::FAILED)
+				if (res != CalibrationResult::Failed)
 				{
 					atLeastOneSuccesss = true;
-					if (res == CalibrationResult::SUCCESS)
+					if (res == CalibrationResult::Success)
 					{
 						// We are better
 						rms = rmsTemp;
@@ -240,7 +240,7 @@ int main(int argc, char* argv[])
 						if (imagePoints.size() >= (size_t)s.nrFrames)
 						{
 							// We are done
-							mode = CalibrationState::CALIBRATED;
+							mode = CalibrationState::Calibrated;
 							std::cout << "We are calibrated!" << std::endl;
 						}
 						else
@@ -261,18 +261,16 @@ int main(int argc, char* argv[])
 			}
 			break;
 		}
-		//! [get_input]
 
 		imageSize = view.size();  // Format input image.
 		if (s.flipVertical)
 		{
+			// If for some reason the image is vertically flipped
 			flip(view, view, 0);
 		}
 
-		//! [find_pattern]
+		// Detected 2D corners
 		std::vector<cv::Point2f> pointBuf;
-
-		bool found;
 
 		int chessBoardFlags = cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE;
 
@@ -282,13 +280,13 @@ int main(int argc, char* argv[])
 		}
 
 		// Find Chessboard
-		found = cv::findChessboardCorners(view, s.boardSize, pointBuf, chessBoardFlags);
+		const bool found = cv::findChessboardCorners(view, s.boardSize, pointBuf, chessBoardFlags);
 
 		if (found)
 		{
 			// If we found the chessboard
 
-			// chessboard found corners can be improved with a solver. It requires everything in black and white
+			// chessboard found 2D corners can be improved with a solver. It requires everything in black and white
 			cv::Mat viewGray;
 			cvtColor(view, viewGray, cv::COLOR_BGR2GRAY);
 			cornerSubPix(viewGray, pointBuf, cv::Size(winSize, winSize), cv::Size(-1, -1), cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.0001));
@@ -298,18 +296,18 @@ int main(int argc, char* argv[])
 
 			switch (mode)
 			{
-			case CalibrationState::CAPTURING:
+			case CalibrationState::Capturing:
 			{
 				if (!s.inputCapture.isOpened() || clock() - prevTimestamp > (clock_t)s.delay * 1e-3 * CLOCKS_PER_SEC)
 				{
 					// For camera only take new samples after delay time
 					imagePoints.push_back(pointBuf);
-					prevTimestamp= clock();
+					prevTimestamp = clock();
 					blinkOutput = s.inputCapture.isOpened();
 				}
 			}
 			break;
-			case CalibrationState::CALIBRATED:
+			case CalibrationState::Calibrated:
 			{
 				if (clock() - prevTimestamp > (clock_t)s.delayUpdate * 1e-3 * CLOCKS_PER_SEC)
 				{
@@ -317,7 +315,7 @@ int main(int argc, char* argv[])
 					camera.estimatePose(corners, pointBuf, (double)(clock() - prevTimestamp) / (double)CLOCKS_PER_SEC, inliers);
 					prevTimestamp = clock();
 				}
-				
+
 				{
 					// Axis Drawing
 					cv::Point3f ori = camera.projectPoint(origin);
@@ -329,11 +327,11 @@ int main(int argc, char* argv[])
 					zBuffer.drawLine(ori, yAxis2d, GREEN, axisThickness);
 					zBuffer.drawLine(ori, zAxis2d, BLUE, axisThickness);
 				}
-				
+
 				{
 					// Cube Drawing
 					std::vector<cv::Point3f> cube;
-					for (const auto &p : points) {
+					for (const auto& p : points) {
 						cube.push_back(camera.projectPoint(p));
 					}
 
@@ -378,31 +376,31 @@ int main(int argc, char* argv[])
 						const float v = corners[i].y / grid_height;
 						const float k = (float)std::sin(CV_PI * (u + v + animTime / 2000.0f)) / 2.0f + 0.5f;
 						const float k2 = (float)std::cos(CV_PI * (u + v + animTime / 20000.0f)) / 2.0f + 0.5f;
-						
+
 						const cv::Point3f newPos(corners[i].x, corners[i].y, corners[i].z + s.squareSize * maxHeight * (k + 2.0f * k2) / 3.0f);
-						
+
 						const cv::Point3f projectedPos = camera.projectPoint(newPos);
 						const cv::Scalar color(255.0f * (k / 2.0f + 0.5), 255.0f * v, 255.0f * u);
 
 						zBuffer.drawCircle(projectedPos, 2, color, 2);
-						
+
 					}
 				}
-				
+
 			}
 			break;
 			default:
 				break;
 			}
 		}
-		
+
 		// Draw Text above everything
-		std::string msg = (mode == CalibrationState::CAPTURING) ? "100/100" : mode == CalibrationState::CALIBRATED ? "Calibrated" : "Press 'g' to start";
+		std::string msg = (mode == CalibrationState::Capturing) ? "100/100" : mode == CalibrationState::Calibrated ? "Calibrated" : "Press 'g' to start";
 		int baseLine = 0;
 		cv::Size textSize = cv::getTextSize(msg, 1, 1, 1, &baseLine);
 		cv::Point textOrigin(view.cols - 2 * textSize.width - 10, view.rows - 2 * baseLine - 10);
 
-		if (mode == CalibrationState::CAPTURING)
+		if (mode == CalibrationState::Capturing)
 		{
 			if (s.showUndistorsed)
 			{
@@ -414,21 +412,18 @@ int main(int argc, char* argv[])
 			}
 		}
 
-		cv::putText(view, msg, textOrigin, 1, 1, mode == CalibrationState::CALIBRATED ? GREEN : RED);
+		cv::putText(view, msg, textOrigin, 1, 1, mode == CalibrationState::Calibrated ? GREEN : RED);
 
 		std::string msg2 = cv::format("Frame %llf ms", dt);
 		cv::Point secsOrigin(view.cols - 2 * textSize.width - 10, view.rows - 4 * baseLine - 10);
-		cv::putText(view, msg2, secsOrigin, 1, 1, mode == CalibrationState::CALIBRATED ? GREEN : RED);
+		cv::putText(view, msg2, secsOrigin, 1, 1, mode == CalibrationState::Calibrated ? GREEN : RED);
 
-		if (mode == CalibrationState::CALIBRATED)
+		if (mode == CalibrationState::Calibrated && found)
 		{
-			if (found)
-			{
-				cv::putText(view, "x", camera.projectPointNoDepth(xAxisText), 1, 3, RED, 3);
-				cv::putText(view, "y", camera.projectPointNoDepth(yAxisText), 1, 3, GREEN, 3);
-				cv::putText(view, "z", camera.projectPointNoDepth(zAxisText), 1, 3, BLUE, 3);
-			}
-
+			// If the chessboard is found and we are calibrated, draw axis labels
+			cv::putText(view, "x", camera.projectPointNoDepth(xAxisText), 1, 3, RED, 3);
+			cv::putText(view, "y", camera.projectPointNoDepth(yAxisText), 1, 3, GREEN, 3);
+			cv::putText(view, "z", camera.projectPointNoDepth(zAxisText), 1, 3, BLUE, 3);
 		}
 
 		if (!s.suppressBlinking && blinkOutput)
@@ -438,7 +433,7 @@ int main(int argc, char* argv[])
 		}
 
 		// Show the result undistorted (this doesn't matter if distortion coefficients are null)
-		if (mode == CalibrationState::CALIBRATED && s.showUndistorsed)
+		if (mode == CalibrationState::Calibrated && s.showUndistorsed)
 		{
 			cv::Mat temp = view.clone();
 			if (s.useFisheye)
@@ -453,7 +448,7 @@ int main(int argc, char* argv[])
 		}
 
 		// Input
-		imshow("Image View", view);
+		cv::imshow("Image View", view);
 		char key = (char)cv::waitKey(s.inputCapture.isOpened() ? 50 : s.delay); // in ms
 
 		if (key == ESC_KEY)
@@ -461,14 +456,15 @@ int main(int argc, char* argv[])
 			break;
 		}
 
-		if (key == 'u' && mode == CalibrationState::CALIBRATED)
+		if (key == 'u' && mode == CalibrationState::Calibrated)
 		{
 			s.showUndistorsed = !s.showUndistorsed;
 		}
 
 		if (s.inputCapture.isOpened() && key == 'g')
 		{
-			mode = CalibrationState::CAPTURING;
+			// We are a webcam
+			mode = CalibrationState::Capturing;
 			imagePoints.clear();
 			rms = std::numeric_limits<double>::infinity();
 			currRestarts = s.restartAttemps;
@@ -479,7 +475,7 @@ int main(int argc, char* argv[])
 	}
 
 	// show undistorted images for image lists
-	if (s.inputType == Settings::InputType::IMAGE_LIST && s.showUndistorsed)
+	if (s.inputType == Settings::InputType::Image_List && s.showUndistorsed)
 	{
 		cv::Mat view, rview, map1, map2;
 
@@ -516,7 +512,6 @@ int main(int argc, char* argv[])
 
 		}
 	}
-	//! [show_results]
 
 	return 0;
 }
