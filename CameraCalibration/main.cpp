@@ -63,7 +63,7 @@ int main(int argc, char* argv[])
 
 	// Only do this once
 	std::vector<cv::Point3f> corners;
-	calcBoardCornerPositions(s.boardSize, s.squareSize, corners, s.calibrationPattern);
+	calcBoardCornerPositions(s.boardSize, s.squareSize, corners);
 
 	float grid_height = s.squareSize * (float)(s.boardSize.height - 1);
 
@@ -281,33 +281,17 @@ int main(int argc, char* argv[])
 			chessBoardFlags |= cv::CALIB_CB_FAST_CHECK;
 		}
 
-		switch (s.calibrationPattern) // Find feature points on the input format
+		// Find Chessboard
+		found = cv::findChessboardCorners(view, s.boardSize, pointBuf, chessBoardFlags);
+
+		if (found)
 		{
-		case Settings::Pattern::CHESSBOARD:
-			found = cv::findChessboardCorners(view, s.boardSize, pointBuf, chessBoardFlags);
-			break;
-		case Settings::Pattern::CIRCLES_GRID:
-			found = cv::findCirclesGrid(view, s.boardSize, pointBuf);
-			break;
-		case Settings::Pattern::ASYMMETRIC_CIRCLES_GRID:
-			found = cv::findCirclesGrid(view, s.boardSize, pointBuf, cv::CALIB_CB_ASYMMETRIC_GRID);
-			break;
-		default:
-			found = false;
-			break;
-		}
-		//! [find_pattern]
-		//! [pattern_found]
-		if (found)                // If done with success,
-		{
+			// If we found the chessboard
+
 			// chessboard found corners can be improved with a solver. It requires everything in black and white
-			if (s.calibrationPattern == Settings::Pattern::CHESSBOARD)
-			{
-				cv::Mat viewGray;
-				cvtColor(view, viewGray, cv::COLOR_BGR2GRAY);
-				cornerSubPix(viewGray, pointBuf, cv::Size(winSize, winSize),
-					cv::Size(-1, -1), cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.0001));
-			}
+			cv::Mat viewGray;
+			cvtColor(view, viewGray, cv::COLOR_BGR2GRAY);
+			cornerSubPix(viewGray, pointBuf, cv::Size(winSize, winSize), cv::Size(-1, -1), cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.0001));
 
 			// Draw the corners.
 			drawChessboardCorners(view, s.boardSize, cv::Mat(pointBuf), found);

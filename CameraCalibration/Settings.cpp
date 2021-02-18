@@ -21,8 +21,7 @@ void Settings::write(cv::FileStorage& fs) const
 	}
 
 
-	fs << "Calibrate_Pattern" << patternToUse
-		<< "Calibrate_NrOfFrameToUse" << nrFrames
+	fs  << "Calibrate_NrOfFrameToUse" << nrFrames
 		<< "Acceptable_Threshold" << acceptableThreshold
 		<< "Calibrate_FixAspectRatio" << aspectRatio
 		<< "Calibrate_AssumeZeroTangentialDistortion" << calibZeroTangentDist
@@ -50,7 +49,6 @@ void Settings::read(const cv::FileNode& node)
 {
 	node["BoardSize_Width"] >> boardSize.width;
 	node["BoardSize_Height"] >> boardSize.height;
-	node["Calibrate_Pattern"] >> patternToUse;
 	node["Square_Size"] >> squareSize;
 	const cv::FileNode gridWidthNode = node["Grid_Width"];
 	if (!gridWidthNode.empty())
@@ -187,26 +185,6 @@ void Settings::validate()
 		if (fixK3)                      flag |= cv::fisheye::CALIB_FIX_K3;
 		if (fixK4)                      flag |= cv::fisheye::CALIB_FIX_K4;
 		if (calibFixPrincipalPoint)     flag |= cv::fisheye::CALIB_FIX_PRINCIPAL_POINT;
-	}
-
-	calibrationPattern = Pattern::NOT_EXISTING;
-	if (!patternToUse.compare("CHESSBOARD"))
-	{
-		calibrationPattern = Pattern::CHESSBOARD;
-	}
-	else if (!patternToUse.compare("CIRCLES_GRID"))
-	{
-		calibrationPattern = Pattern::CIRCLES_GRID;
-	}
-	else if (!patternToUse.compare("ASYMMETRIC_CIRCLES_GRID"))
-	{
-		calibrationPattern = Pattern::ASYMMETRIC_CIRCLES_GRID;
-	}
-
-	if (calibrationPattern == Pattern::NOT_EXISTING)
-	{
-		std::cerr << " Camera calibration mode does not exist: " << patternToUse << std::endl;
-		goodInput = false;
 	}
 	atImageList = 0;
 

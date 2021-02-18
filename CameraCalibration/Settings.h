@@ -10,7 +10,6 @@ class Settings
 {
 public:
 	Settings() : goodInput(false) {}
-	enum class Pattern { NOT_EXISTING, CHESSBOARD, CIRCLES_GRID, ASYMMETRIC_CIRCLES_GRID };
 	enum class InputType { INVALID, CAMERA, VIDEO_FILE, IMAGE_LIST };
 
 	//Write serialization for this class
@@ -57,7 +56,6 @@ public:
 
 public:
 	cv::Size boardSize;          // The size of the board -> Number of items by width and height
-	Pattern calibrationPattern;  // One of the Chessboard, circles, or asymmetric circle pattern
 	float squareSize;            // The size of a square in your defined unit (point, millimeter,etc).
 	float gridWidth;			 // Grid width in your defined unit (point, millimeter,etc).
 	bool releaseObject;			 // Use special chessboard calibration function if gridWidth is defined

@@ -55,40 +55,16 @@ static double computeProjectionErrors(const std::vector<std::vector<cv::Point3f>
 }
 
 
-void calcBoardCornerPositions(const cv::Size boardSize, const float squareSize, std::vector<cv::Point3f>& corners,
-	const Settings::Pattern patternType)
+void calcBoardCornerPositions(const cv::Size boardSize, const float squareSize, std::vector<cv::Point3f>& corners)
 {
 	corners.clear();
 
-	switch (patternType)
+	for (int i = 0; i < boardSize.height; ++i)
 	{
-	case Settings::Pattern::CHESSBOARD:
-	case Settings::Pattern::CIRCLES_GRID:
-	{
-		for (int i = 0; i < boardSize.height; ++i)
+		for (int j = 0; j < boardSize.width; ++j)
 		{
-			for (int j = 0; j < boardSize.width; ++j)
-			{
-				corners.push_back(cv::Point3f(j * squareSize, i * squareSize, 0));
-			}
+			corners.push_back(cv::Point3f(j * squareSize, i * squareSize, 0));
 		}
-	}
-	break;
-
-	case Settings::Pattern::ASYMMETRIC_CIRCLES_GRID:
-	{
-		for (int i = 0; i < boardSize.height; i++)
-		{
-			for (int j = 0; j < boardSize.width; j++)
-			{
-				corners.push_back(cv::Point3f((2 * j + i % 2) * squareSize, i * squareSize, 0));
-			}
-		}
-
-	}
-	break;
-	default:
-		break;
 	}
 }
 

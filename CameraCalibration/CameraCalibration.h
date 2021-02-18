@@ -43,6 +43,4 @@ CalibrationResult calibrateAndSave(const Settings& s, const cv::Size imageSize, 
 /// <param name="boardSize">Size of the calibration board</param>
 /// <param name="squareSize">Size of the squares of the calibration</param>
 /// <param name="corners">Output corners of the board (3D world space)</param>
-/// <param name="patternType">Pattern of the calibration board</param>
-void calcBoardCornerPositions(const cv::Size boardSize, const float squareSize, std::vector<cv::Point3f>& corners,
-	const Settings::Pattern patternType = Settings::Pattern::CHESSBOARD);
+void calcBoardCornerPositions(const cv::Size boardSize, const float squareSize, std::vector<cv::Point3f>& corners);

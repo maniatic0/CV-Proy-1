@@ -11,9 +11,6 @@
   <!-- Width of the Chessboard in some user defined metric system (pixel, millimeter)-->
   <Grid_Width>175</Grid_Width>
   
-  <!-- The type of input used for camera calibration. One of: CHESSBOARD CIRCLES_GRID ASYMMETRIC_CIRCLES_GRID -->
-  <Calibrate_Pattern>"CHESSBOARD"</Calibrate_Pattern>
-  
   <!-- The input to use for calibration. 
 		To use an input camera -> give the ID of the camera, like "1"
 		To use an input video  -> give the path of the input video, like "/tmp/x.avi"
