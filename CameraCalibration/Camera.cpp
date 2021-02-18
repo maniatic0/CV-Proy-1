@@ -10,6 +10,8 @@ void Camera::estimatePose(const std::vector<cv::Point3f>& list_points3d,
 	cv::Mat& inliers_idx
 )
 {
+	// Based on https ://docs.opencv.org/master/dc/d2c/tutorial_real_time_pose.html
+
 	cv::Mat rvec; // output rotation vector
 	cv::Mat tvec; // output translation vector
 	// initial approximations of the rotation and translation vectors
@@ -69,6 +71,7 @@ void Camera::estimatePose(const std::vector<cv::Point3f>& list_points3d,
 
 void Camera::updateKalmanFilterDt(cv::KalmanFilter& KF, double dt)
 {
+	// Based on https://docs.opencv.org/master/dc/d2c/tutorial_real_time_pose.html
 	// position
 	KF.transitionMatrix.at<double>(0, 3) = dt;
 	KF.transitionMatrix.at<double>(1, 4) = dt;
@@ -93,6 +96,7 @@ void Camera::updateKalmanFilterDt(cv::KalmanFilter& KF, double dt)
 
 void Camera::resetKalmanFilter(cv::KalmanFilter& KF, int nStates, int nMeasurements, int nInputs, double dt)
 {
+	// Based on https://docs.opencv.org/master/dc/d2c/tutorial_real_time_pose.html
 	KF.init(nStates, nMeasurements, nInputs, CV_64F);                 // init Kalman Filter
 	cv::setIdentity(KF.processNoiseCov, cv::Scalar::all(1e-5));       // set process noise
 	cv::setIdentity(KF.measurementNoiseCov, cv::Scalar::all(1e-4));   // set measurement noise
@@ -136,6 +140,7 @@ void Camera::resetKalmanFilter(cv::KalmanFilter& KF, int nStates, int nMeasureme
 void Camera::fillKalmanMeasurements(cv::Mat& measurements,
 	const cv::Mat& translation_measured, const cv::Mat& rotation_measured)
 {
+	// Based on https://docs.opencv.org/master/dc/d2c/tutorial_real_time_pose.html
 	// Convert rotation matrix to euler angles
 	cv::Mat measured_eulers(3, 1, CV_64F);
 	measured_eulers = rot2euler(rotation_measured);
@@ -151,6 +156,7 @@ void Camera::fillKalmanMeasurements(cv::Mat& measurements,
 void Camera::updateKalmanFilter(cv::KalmanFilter& KF, cv::Mat& measurement, double dt,
 	cv::Mat& translation_estimated, cv::Mat& rotation_estimated)
 {
+	// Based on https://docs.opencv.org/master/dc/d2c/tutorial_real_time_pose.html
 	// Update delta time
 	updateKalmanFilterDt(KF, dt);
 

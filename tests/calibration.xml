@@ -33,7 +33,7 @@
   <Calibrate_NrOfFrameToUse>15</Calibrate_NrOfFrameToUse>
 
   <!-- How many restarts to use, before settiling for a calibration. -->
-  <Restart_Attemps>3</Restart_Attemps>
+  <Restart_Attemps>0</Restart_Attemps>
 
   <!-- Calibration Minimum Threshold. -->
   <Acceptable_Threshold>0.001</Acceptable_Threshold>

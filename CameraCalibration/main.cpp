@@ -6,11 +6,8 @@
 #include <chrono>
 
 #include <opencv2/core.hpp>
-#include <opencv2/core/utility.hpp>
 #include <opencv2/imgproc.hpp>
-#include <opencv2/calib3d.hpp>
 #include <opencv2/imgcodecs.hpp>
-#include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
 
 #include "CameraCalibration.h"
@@ -24,8 +21,7 @@ int main(int argc, char* argv[])
 {
 	const cv::String keys
 		= "{help h usage ? |           | print this message            }"
-		"{@settings      |default.xml| input setting file            }"
-		"{winSize        | 11        | Half of search window for cornerSubPix }";
+		"{@settings      |default.xml| input setting file            }";
 	cv::CommandLineParser parser(argc, argv, keys);
 	parser.about("This is a camera calibration sample.\n"
 		"Usage: camera_calibration [configuration_file -- default ./default.xml]\n"
@@ -60,7 +56,7 @@ int main(int argc, char* argv[])
 		fs.release(); // close Settings file
 	}
 
-	int winSize = parser.get<int>("winSize");
+	int winSize = (int)(s.squareSize / 2.0f);
 
 	float grid_width = s.gridWidth;
 	bool release_object = s.releaseObject;
