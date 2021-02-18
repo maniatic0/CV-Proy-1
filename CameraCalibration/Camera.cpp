@@ -14,35 +14,41 @@ void Camera::estimatePose(const std::vector<cv::Point3f>& list_points3d,
 
 	cv::Mat rvec; // output rotation vector
 	cv::Mat tvec; // output translation vector
-	// initial approximations of the rotation and translation vectors
 
 	const bool finalUseExtrinsics = !neverUseExtrinsicGuess && useExtrinsicGuess;
 	if (finalUseExtrinsics)
 	{
+		// initial approximations of the rotation and translation vectors
 		rvec_.copyTo(rvec);
 		tMatrix.copyTo(tvec);
 	}
 	else
 	{
+		// Nothing if we don't use them
 		rvec = cv::Mat::zeros(3, 1, CV_64FC1);
 		tvec = cv::Mat::zeros(3, 1, CV_64FC1);
 	}
 
+	// Use solver to get extrinsic parameters
 	const bool res = cv::solvePnPRansac(list_points3d, list_points2d, kMatrix, distCoeffs, rvec, tvec,
 		finalUseExtrinsics, iterationsCount, reprojectionError, confidence, inliers_idx, method);
 
 	if (res)
 	{
+		// Valid solution
 		setExtrinsics(rvec, tvec);
 	}
 	else
 	{
+		// We failed
 		std::cout << "PnP Failed" << std::endl;
+		return;
 	}
 
 	if (useKalmanFilter)
 	{
-		// GOOD MEASUREMENT
+		// We use filter to improve movement
+		// We have to check if this is a good measurment to add to the filter
 		const bool goodKalmanMeasurment = inliers_idx.rows >= minInliersKalman;
 		if (goodKalmanMeasurment)
 		{
@@ -55,11 +61,11 @@ void Camera::estimatePose(const std::vector<cv::Point3f>& list_points3d,
 		}
 
 		// update the Kalman filter with good measurements
-		updateKalmanFilter(KF, measurements, dt, tMatrixKalman, rMatrixKalman);
+		updateKalmanFilter(kalmanFilter, measurements, dt, tMatrixKalman, rMatrixKalman);
 
 		if (goodKalmanMeasurment)
 		{
-			// Update Matrices
+			// Update Matrices if we had good information to add from the filter
 			tMatrixKalman.copyTo(tMatrix);
 			rMatrixKalman.copyTo(rMatrix);
 			cv::Rodrigues(rMatrix, rvec_);
@@ -69,38 +75,30 @@ void Camera::estimatePose(const std::vector<cv::Point3f>& list_points3d,
 
 }
 
-void Camera::updateKalmanFilterDt(cv::KalmanFilter& KF, double dt)
+void Camera::updateKalmanFilterDt(cv::KalmanFilter& kalmanFilter, double dt)
 {
 	// Based on https://docs.opencv.org/master/dc/d2c/tutorial_real_time_pose.html
 	// position
-	KF.transitionMatrix.at<double>(0, 3) = dt;
-	KF.transitionMatrix.at<double>(1, 4) = dt;
-	KF.transitionMatrix.at<double>(2, 5) = dt;
-	KF.transitionMatrix.at<double>(3, 6) = dt;
-	KF.transitionMatrix.at<double>(4, 7) = dt;
-	KF.transitionMatrix.at<double>(5, 8) = dt;
-	KF.transitionMatrix.at<double>(0, 6) = 0.5 * dt * dt;
-	KF.transitionMatrix.at<double>(1, 7) = 0.5 * dt * dt;
-	KF.transitionMatrix.at<double>(2, 8) = 0.5 * dt * dt;
+	kalmanFilter.transitionMatrix.at<double>(0, 3) = dt;
+	kalmanFilter.transitionMatrix.at<double>(1, 4) = dt;
+	kalmanFilter.transitionMatrix.at<double>(2, 5) = dt;
+	kalmanFilter.transitionMatrix.at<double>(3, 6) = dt;
+	kalmanFilter.transitionMatrix.at<double>(4, 7) = dt;
+	kalmanFilter.transitionMatrix.at<double>(5, 8) = dt;
+	kalmanFilter.transitionMatrix.at<double>(0, 6) = 0.5 * dt * dt;
+	kalmanFilter.transitionMatrix.at<double>(1, 7) = 0.5 * dt * dt;
+	kalmanFilter.transitionMatrix.at<double>(2, 8) = 0.5 * dt * dt;
 	// orientation
-	KF.transitionMatrix.at<double>(9, 12) = dt;
-	KF.transitionMatrix.at<double>(10, 13) = dt;
-	KF.transitionMatrix.at<double>(11, 14) = dt;
-	KF.transitionMatrix.at<double>(12, 15) = dt;
-	KF.transitionMatrix.at<double>(13, 16) = dt;
-	KF.transitionMatrix.at<double>(14, 17) = dt;
-	KF.transitionMatrix.at<double>(9, 15) = 0.5 * dt * dt;
-	KF.transitionMatrix.at<double>(10, 16) = 0.5 * dt * dt;
-	KF.transitionMatrix.at<double>(11, 17) = 0.5 * dt * dt;
-}
+	kalmanFilter.transitionMatrix.at<double>(9, 12) = dt;
+	kalmanFilter.transitionMatrix.at<double>(10, 13) = dt;
+	kalmanFilter.transitionMatrix.at<double>(11, 14) = dt;
+	kalmanFilter.transitionMatrix.at<double>(12, 15) = dt;
+	kalmanFilter.transitionMatrix.at<double>(13, 16) = dt;
+	kalmanFilter.transitionMatrix.at<double>(14, 17) = dt;
+	kalmanFilter.transitionMatrix.at<double>(9, 15) = 0.5 * dt * dt;
+	kalmanFilter.transitionMatrix.at<double>(10, 16) = 0.5 * dt * dt;
+	kalmanFilter.transitionMatrix.at<double>(11, 17) = 0.5 * dt * dt;
 
-void Camera::resetKalmanFilter(cv::KalmanFilter& KF, int nStates, int nMeasurements, int nInputs, double dt)
-{
-	// Based on https://docs.opencv.org/master/dc/d2c/tutorial_real_time_pose.html
-	KF.init(nStates, nMeasurements, nInputs, CV_64F);                 // init Kalman Filter
-	cv::setIdentity(KF.processNoiseCov, cv::Scalar::all(1e-5));       // set process noise
-	cv::setIdentity(KF.measurementNoiseCov, cv::Scalar::all(1e-4));   // set measurement noise
-	cv::setIdentity(KF.errorCovPost, cv::Scalar::all(1));             // error covariance
 	/* Kalman Model from tutorial*/
 	//  [1 0 0 dt  0  0 dt2   0   0 0 0 0  0  0  0   0   0   0]
 	//  [0 1 0  0 dt  0   0 dt2   0 0 0 0  0  0  0   0   0   0]
@@ -120,59 +118,80 @@ void Camera::resetKalmanFilter(cv::KalmanFilter& KF, int nStates, int nMeasureme
 	//  [0 0 0  0  0  0   0   0   0 0 0 0  0  0  0   1   0   0]
 	//  [0 0 0  0  0  0   0   0   0 0 0 0  0  0  0   0   1   0]
 	//  [0 0 0  0  0  0   0   0   0 0 0 0  0  0  0   0   0   1]
-	updateKalmanFilterDt(KF, dt);
-	/* MEASUREMENT MODEL */
+}
+
+void Camera::resetKalmanFilter(cv::KalmanFilter& kalmanFilter, int nStates, int nMeasurements, int nInputs, double dt)
+{
+	// Based on https://docs.opencv.org/master/dc/d2c/tutorial_real_time_pose.html
+	// Kalman Filter init
+	kalmanFilter.init(nStates, nMeasurements, nInputs, CV_64F);                 // init Kalman Filter
+	cv::setIdentity(kalmanFilter.processNoiseCov, cv::Scalar::all(1e-5));       // set process noise
+	cv::setIdentity(kalmanFilter.measurementNoiseCov, cv::Scalar::all(1e-4));   // set measurement noise
+	cv::setIdentity(kalmanFilter.errorCovPost, cv::Scalar::all(1));             // error covariance
+
+	// Update dt
+	updateKalmanFilterDt(kalmanFilter, dt);
+
+	/* Measurment Model from Tutorial */
 	//  [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
 	//  [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
 	//  [0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
 	//  [0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0]
 	//  [0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0]
 	//  [0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0]
-	KF.measurementMatrix.at<double>(0, 0) = 1;  // x
-	KF.measurementMatrix.at<double>(1, 1) = 1;  // y
-	KF.measurementMatrix.at<double>(2, 2) = 1;  // z
-	KF.measurementMatrix.at<double>(3, 9) = 1;  // roll
-	KF.measurementMatrix.at<double>(4, 10) = 1; // pitch
-	KF.measurementMatrix.at<double>(5, 11) = 1; // yaw
+
+	// Translation Vector
+	kalmanFilter.measurementMatrix.at<double>(0, 0) = 1;  // x
+	kalmanFilter.measurementMatrix.at<double>(1, 1) = 1;  // y
+	kalmanFilter.measurementMatrix.at<double>(2, 2) = 1;  // z
+
+	// Euler angles
+	kalmanFilter.measurementMatrix.at<double>(3, 9) = 1;  // roll
+	kalmanFilter.measurementMatrix.at<double>(4, 10) = 1; // pitch
+	kalmanFilter.measurementMatrix.at<double>(5, 11) = 1; // yaw
 }
 
 
 void Camera::fillKalmanMeasurements(cv::Mat& measurements,
-	const cv::Mat& translation_measured, const cv::Mat& rotation_measured)
+	const cv::Mat& measuredTranslation, const cv::Mat& measuredRotation)
 {
 	// Based on https://docs.opencv.org/master/dc/d2c/tutorial_real_time_pose.html
 	// Convert rotation matrix to euler angles
-	cv::Mat measured_eulers(3, 1, CV_64F);
-	measured_eulers = rot2euler(rotation_measured);
+	cv::Mat measuredEulers(3, 1, CV_64F);
+	measuredEulers = rot2euler(measuredRotation);
 	// Set measurement to predict
-	measurements.at<double>(0) = translation_measured.at<double>(0); // x
-	measurements.at<double>(1) = translation_measured.at<double>(1); // y
-	measurements.at<double>(2) = translation_measured.at<double>(2); // z
-	measurements.at<double>(3) = measured_eulers.at<double>(0);      // roll
-	measurements.at<double>(4) = measured_eulers.at<double>(1);      // pitch
-	measurements.at<double>(5) = measured_eulers.at<double>(2);      // yaw
+
+	// Translation Vector
+	measurements.at<double>(0) = measuredTranslation.at<double>(0); // x
+	measurements.at<double>(1) = measuredTranslation.at<double>(1); // y
+	measurements.at<double>(2) = measuredTranslation.at<double>(2); // z
+
+	// Euler angles
+	measurements.at<double>(3) = measuredEulers.at<double>(0);      // roll
+	measurements.at<double>(4) = measuredEulers.at<double>(1);      // pitch
+	measurements.at<double>(5) = measuredEulers.at<double>(2);      // yaw
 }
 
-void Camera::updateKalmanFilter(cv::KalmanFilter& KF, cv::Mat& measurement, double dt,
-	cv::Mat& translation_estimated, cv::Mat& rotation_estimated)
+void Camera::updateKalmanFilter(cv::KalmanFilter& kalmanFilter, cv::Mat& measurement, double dt,
+	cv::Mat& estimatedTranslation, cv::Mat& estimatedRotation)
 {
 	// Based on https://docs.opencv.org/master/dc/d2c/tutorial_real_time_pose.html
-	// Update delta time
-	updateKalmanFilterDt(KF, dt);
+	// Update delta time of model
+	updateKalmanFilterDt(kalmanFilter, dt);
 
-	// First predict, to update the internal statePre variable
-	KF.predict();
-	// The "correct" phase that is going to use the predicted value and our measurement
-	cv::Mat estimated = KF.correct(measurement);
+	// Update internal model to current time (discard prediction)
+	kalmanFilter.predict();
+	// The improve measurements by using the filter
+	cv::Mat estimated = kalmanFilter.correct(measurement);
 	// Estimated translation
-	translation_estimated.at<double>(0) = estimated.at<double>(0);
-	translation_estimated.at<double>(1) = estimated.at<double>(1);
-	translation_estimated.at<double>(2) = estimated.at<double>(2);
+	estimatedTranslation.at<double>(0) = estimated.at<double>(0);
+	estimatedTranslation.at<double>(1) = estimated.at<double>(1);
+	estimatedTranslation.at<double>(2) = estimated.at<double>(2);
 	// Estimated euler angles
-	cv::Mat eulers_estimated(3, 1, CV_64F);
-	eulers_estimated.at<double>(0) = estimated.at<double>(9);
-	eulers_estimated.at<double>(1) = estimated.at<double>(10);
-	eulers_estimated.at<double>(2) = estimated.at<double>(11);
-	// Convert estimated quaternion to rotation matrix
-	rotation_estimated = euler2rot(eulers_estimated);
+	cv::Mat estimatedEulers(3, 1, CV_64F);
+	estimatedEulers.at<double>(0) = estimated.at<double>(9);
+	estimatedEulers.at<double>(1) = estimated.at<double>(10);
+	estimatedEulers.at<double>(2) = estimated.at<double>(11);
+	// Convert estimated euler angles to rotation matrix
+	estimatedRotation = euler2rot(estimatedEulers);
 }

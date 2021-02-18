@@ -76,8 +76,7 @@ public:
 	bool flipVertical;           // Flip the captured images around the horizontal axis
 	std::string outputFileName;  // The name of the file where to write
 	bool showUndistorsed;        // Show undistorted images after calibration
-	std::string input;           // The input ->
-	bool useFisheye;             // use fisheye camera model for calibration
+	std::string input;           // The input
 	bool fixK1;                  // fix K1 distortion coefficient
 	bool fixK2;                  // fix K2 distortion coefficient
 	bool fixK3;                  // fix K3 distortion coefficient

@@ -8,9 +8,6 @@
 
 #include <vector>
 
-/// <summary>
-/// Pose Estimation based on https://docs.opencv.org/master/dc/d2c/tutorial_real_time_pose.html
-/// </summary>
 class Camera
 {
 public:
@@ -202,11 +199,11 @@ private:
 	cv::SolvePnPMethod method = cv::SOLVEPNP_EPNP;
 
 	// Kalman Filter parameters
-	cv::KalmanFilter KF;			// Kalman Filter
+	cv::KalmanFilter kalmanFilter;	// Kalman Filter
 	int nStates = 18;				// the number of states
 	int nMeasurements = 6;			// the number of measured states
 	int nInputs = 0;				// the number of action control
-	int minInliersKalman = 30;		// Kalman threshold updatin
+	int minInliersKalman;			// Kalman threshold updating
 	cv::Mat measurements;			// Kalman measurements from the last valid frame
 	cv::Mat rMatrixKalman;			// Kalman Rotation Estimation
 	cv::Mat tMatrixKalman;			// Kalman Translation Estimation
@@ -239,14 +236,14 @@ private:
 	/// <summary>
 	/// Update delta time for Kalman Filter
 	/// </summary>
-	/// <param name="KF">Kalman Filter to update</param>
+	/// <param name="kalmanFilter">Kalman Filter to update</param>
 	/// <param name="dt">Delta time</param>
 	static void updateKalmanFilterDt(cv::KalmanFilter& KF, double dt);
 
 	/// <summary>
 	/// Resets a Kalman Filter to start learning again
 	/// </summary>
-	/// <param name="KF">Kalman Fiter</param>
+	/// <param name="kalmanFilter">Kalman Fiter</param>
 	/// <param name="nStates">Number of States for the Kalman Filter</param>
 	/// <param name="nMeasurements">Number of Measurements for the Kalman Filter</param>
 	/// <param name="nInputs"></param>
@@ -258,26 +255,26 @@ private:
 	/// </summary>
 	inline void ResetKalmanFilter()
 	{
-		resetKalmanFilter(KF, nStates, nMeasurements, nInputs, expectedDtKalman); // Last one is the estimated dt
+		resetKalmanFilter(kalmanFilter, nStates, nMeasurements, nInputs, expectedDtKalman); // Last one is the estimated dt
 	}
 
 	/// <summary>
 	/// Fill Kalman Measurements (translation + angles)
 	/// </summary>
 	/// <param name="measurements">Kalman Measurements</param>
-	/// <param name="translation_measured">Translation Measured</param>
-	/// <param name="rotation_measured">Rotation Measured</param>
+	/// <param name="measuredTranslation">Translation Measured</param>
+	/// <param name="measuredRotation">Rotation Measured</param>
 	static void fillKalmanMeasurements(cv::Mat& measurements,
-		const cv::Mat& translation_measured, const cv::Mat& rotation_measured);
+		const cv::Mat& measuredTranslation, const cv::Mat& measuredRotation);
 
 	/// <summary>
 	/// Update Kalman Filter with current measurements
 	/// </summary>
-	/// <param name="KF">Kalman Filter</param>
+	/// <param name="kalmanFilter">Kalman Filter</param>
 	/// <param name="measurement">New Measurements</param>
-	/// <param name="translation_estimated">Estimated Translation</param>
-	/// <param name="rotation_estimated">Estimated Rotation</param>
+	/// <param name="estimatedTranslation">Estimated Translation</param>
+	/// <param name="estimatedRotation">Estimated Rotation</param>
 	static void updateKalmanFilter(cv::KalmanFilter& KF, cv::Mat& measurement, double dt,
-		cv::Mat& translation_estimated, cv::Mat& rotation_estimated);
+		cv::Mat& estimatedTranslation, cv::Mat& estimatedRotation);
 
 };

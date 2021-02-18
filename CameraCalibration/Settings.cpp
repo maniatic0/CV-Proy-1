@@ -70,7 +70,6 @@ void Settings::read(const cv::FileNode& node)
 	node["Write_outputFileName"] >> outputFileName;
 	node["Calibrate_AssumeZeroTangentialDistortion"] >> calibZeroTangentDist;
 	node["Calibrate_FixPrincipalPointAtTheCenter"] >> calibFixPrincipalPoint;
-	node["Calibrate_UseFisheyeModel"] >> useFisheye;
 	node["Input_FlipAroundHorizontalAxis"] >> flipVertical;
 	node["Show_UndistortedImage"] >> showUndistorsed;
 	node["Input"] >> input;
@@ -177,15 +176,6 @@ void Settings::validate()
 	if (fixK4)                  flag |= cv::CALIB_FIX_K4;
 	if (fixK5)                  flag |= cv::CALIB_FIX_K5;
 
-	if (useFisheye) {
-		// the fisheye model has its own enum, so overwrite the flags
-		flag = cv::fisheye::CALIB_FIX_SKEW | cv::fisheye::CALIB_RECOMPUTE_EXTRINSIC;
-		if (fixK1)                      flag |= cv::fisheye::CALIB_FIX_K1;
-		if (fixK2)                      flag |= cv::fisheye::CALIB_FIX_K2;
-		if (fixK3)                      flag |= cv::fisheye::CALIB_FIX_K3;
-		if (fixK4)                      flag |= cv::fisheye::CALIB_FIX_K4;
-		if (calibFixPrincipalPoint)     flag |= cv::fisheye::CALIB_FIX_PRINCIPAL_POINT;
-	}
 	atImageList = 0;
 
 }

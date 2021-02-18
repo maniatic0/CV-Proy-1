@@ -19,13 +19,12 @@
 /// <param name="cameraMatrix">Camera's Intrinsic Matrix</param>
 /// <param name="distCoeffs">Camera's Distortion Coefficients</param>
 /// <param name="perViewErrors">Output errors per processed colorBuff</param>
-/// <param name="fisheye">If to use fish eye</param>
 /// <returns>Summed error of all views</returns>
 static double computeProjectionErrors(const std::vector<std::vector<cv::Point3f> >& objectPoints,
 	const std::vector<std::vector<cv::Point2f> >& imagePoints,
 	const std::vector<cv::Mat>& rvecs, const std::vector<cv::Mat>& tvecs,
 	const cv::Mat& cameraMatrix, const cv::Mat& distCoeffs,
-	std::vector<float>& perViewErrors, const bool fisheye)
+	std::vector<float>& perViewErrors)
 {
 	std::vector<cv::Point2f> imagePoints2;
 	size_t totalPoints = 0;
@@ -34,15 +33,7 @@ static double computeProjectionErrors(const std::vector<std::vector<cv::Point3f>
 
 	for (size_t i = 0; i < objectPoints.size(); ++i)
 	{
-		if (fisheye)
-		{
-			cv::fisheye::projectPoints(objectPoints[i], imagePoints2, rvecs[i], tvecs[i], cameraMatrix,
-				distCoeffs);
-		}
-		else
-		{
-			cv::projectPoints(objectPoints[i], rvecs[i], tvecs[i], cameraMatrix, distCoeffs, imagePoints2);
-		}
+		cv::projectPoints(objectPoints[i], rvecs[i], tvecs[i], cameraMatrix, distCoeffs, imagePoints2);
 		err = cv::norm(imagePoints[i], imagePoints2, cv::NORM_L2);
 
 		size_t n = objectPoints[i].size();
@@ -99,13 +90,7 @@ static bool calibrate(const Settings& s, const cv::Size& imageSize, cv::Mat& cam
 		cameraMatrix.at<double>(0, 0) = s.aspectRatio;
 	}
 
-	// If we use fisheye
-	if (s.useFisheye) {
-		distCoeffs = cv::Mat::zeros(4, 1, CV_64F);
-	}
-	else {
-		distCoeffs = cv::Mat::zeros(8, 1, CV_64F);
-	}
+	distCoeffs = cv::Mat::zeros(8, 1, CV_64F);
 
 	std::vector<std::vector<cv::Point3f> > objectPoints(1);
 	objectPoints[0] = corners;
@@ -116,30 +101,15 @@ static bool calibrate(const Settings& s, const cv::Size& imageSize, cv::Mat& cam
 	objectPoints.resize(imagePoints.size(), objectPoints[0]);
 
 	//Find intrinsic and extrinsic camera parameters
-	if (s.useFisheye) {
-		// Fish eye uses a different function 
-		cv::Mat _rvecs, _tvecs;
-		rms = cv::fisheye::calibrate(objectPoints, imagePoints, imageSize, cameraMatrix, distCoeffs, _rvecs,
-			_tvecs, s.flag);
-
-		rvecs.reserve(_rvecs.rows);
-		tvecs.reserve(_tvecs.rows);
-		for (int i = 0; i < int(objectPoints.size()); i++) {
-			rvecs.push_back(_rvecs.row(i));
-			tvecs.push_back(_tvecs.row(i));
-		}
+	int iFixedPoint = -1;
+	if (release_object)
+	{
+		// If we use the special optimizer we have to send which point we fixed with the real grid width
+		iFixedPoint = s.boardSize.width - 1;
 	}
-	else {
-		int iFixedPoint = -1;
-		if (release_object)
-		{
-			// If we use the special optimizer we have to send which point we fixed with the real grid width
-			iFixedPoint = s.boardSize.width - 1;
-		}
-		rms = cv::calibrateCameraRO(objectPoints, imagePoints, imageSize, iFixedPoint,
-			cameraMatrix, distCoeffs, rvecs, tvecs, newObjPoints,
-			s.flag | cv::CALIB_USE_LU); // LU used because it is faster
-	}
+	rms = cv::calibrateCameraRO(objectPoints, imagePoints, imageSize, iFixedPoint,
+		cameraMatrix, distCoeffs, rvecs, tvecs, newObjPoints,
+		s.flag | cv::CALIB_USE_LU); // LU used because it is faster
 
 	// If we use the special optimizer based on knowing the grid width (really good and fast)
 	if (release_object) {
@@ -160,7 +130,7 @@ static bool calibrate(const Settings& s, const cv::Size& imageSize, cv::Mat& cam
 	objectPoints.clear();
 	objectPoints.resize(imagePoints.size(), newObjPoints);
 	totalAvgErr = computeProjectionErrors(objectPoints, imagePoints, rvecs, tvecs, cameraMatrix,
-		distCoeffs, projErrs, s.useFisheye);
+		distCoeffs, projErrs);
 
 	return ok;
 }
@@ -183,6 +153,7 @@ static void saveCameraParams(const Settings& s, const cv::Size& imageSize, const
 	const std::vector<float>& reprojErrs, const std::vector<std::vector<cv::Point2f> >& imagePoints,
 	const double totalAvgErr, const std::vector<cv::Point3f>& newObjPoints)
 {
+	// From https://docs.opencv.org/4.2.0/d4/d94/tutorial_camera_calibration.html
 	cv::FileStorage fs(s.outputFileName, cv::FileStorage::WRITE);
 
 	time_t tm;
@@ -212,35 +183,20 @@ static void saveCameraParams(const Settings& s, const cv::Size& imageSize, const
 	if (s.flag)
 	{
 		std::stringstream flagsStringStream;
-		if (s.useFisheye)
-		{
-			flagsStringStream << "flags:"
-				<< (s.flag & cv::fisheye::CALIB_FIX_SKEW ? " +fix_skew" : "")
-				<< (s.flag & cv::fisheye::CALIB_FIX_K1 ? " +fix_k1" : "")
-				<< (s.flag & cv::fisheye::CALIB_FIX_K2 ? " +fix_k2" : "")
-				<< (s.flag & cv::fisheye::CALIB_FIX_K3 ? " +fix_k3" : "")
-				<< (s.flag & cv::fisheye::CALIB_FIX_K4 ? " +fix_k4" : "")
-				<< (s.flag & cv::fisheye::CALIB_RECOMPUTE_EXTRINSIC ? " +recompute_extrinsic" : "");
-		}
-		else
-		{
-			flagsStringStream << "flags:"
-				<< (s.flag & cv::CALIB_USE_INTRINSIC_GUESS ? " +use_intrinsic_guess" : "")
-				<< (s.flag & cv::CALIB_FIX_ASPECT_RATIO ? " +fix_aspectRatio" : "")
-				<< (s.flag & cv::CALIB_FIX_PRINCIPAL_POINT ? " +fix_principal_point" : "")
-				<< (s.flag & cv::CALIB_ZERO_TANGENT_DIST ? " +zero_tangent_dist" : "")
-				<< (s.flag & cv::CALIB_FIX_K1 ? " +fix_k1" : "")
-				<< (s.flag & cv::CALIB_FIX_K2 ? " +fix_k2" : "")
-				<< (s.flag & cv::CALIB_FIX_K3 ? " +fix_k3" : "")
-				<< (s.flag & cv::CALIB_FIX_K4 ? " +fix_k4" : "")
-				<< (s.flag & cv::CALIB_FIX_K5 ? " +fix_k5" : "");
-		}
+		flagsStringStream << "flags:"
+			<< (s.flag & cv::CALIB_USE_INTRINSIC_GUESS ? " +use_intrinsic_guess" : "")
+			<< (s.flag & cv::CALIB_FIX_ASPECT_RATIO ? " +fix_aspectRatio" : "")
+			<< (s.flag & cv::CALIB_FIX_PRINCIPAL_POINT ? " +fix_principal_point" : "")
+			<< (s.flag & cv::CALIB_ZERO_TANGENT_DIST ? " +zero_tangent_dist" : "")
+			<< (s.flag & cv::CALIB_FIX_K1 ? " +fix_k1" : "")
+			<< (s.flag & cv::CALIB_FIX_K2 ? " +fix_k2" : "")
+			<< (s.flag & cv::CALIB_FIX_K3 ? " +fix_k3" : "")
+			<< (s.flag & cv::CALIB_FIX_K4 ? " +fix_k4" : "")
+			<< (s.flag & cv::CALIB_FIX_K5 ? " +fix_k5" : "");
 		fs.writeComment(flagsStringStream.str());
 	}
 
 	fs << "flags" << s.flag;
-
-	fs << "fisheye_model" << s.useFisheye;
 
 	fs << "camera_matrix" << cameraMatrix;
 	fs << "distortion_coefficients" << distCoeffs;
@@ -316,13 +272,13 @@ CalibrationResult calibrateAndSave(const Settings& s, const cv::Size imageSize, 
 	double totalAvgErr = 0;
 	std::vector<cv::Point3f> newObjPoints;
 
-	bool ok = calibrate(s, imageSize, cameraMatrix, distCoeffs, imagePoints, corners, rvecs, tvecs, reprojErrs,
+	const bool ok = calibrate(s, imageSize, cameraMatrix, distCoeffs, imagePoints, corners, rvecs, tvecs, reprojErrs,
 		totalAvgErr, rms, newObjPoints, grid_width, release_object);
 	std::cout << (ok ? "Calibration succeeded" : "Calibration failed")
 		<< ". avg projection error = " << totalAvgErr << std::endl;
 
 	// Check for better RMS
-	bool betterRMS = rms < rmsPrev;
+	const bool betterRMS = rms < rmsPrev;
 
 	// Save if okay and better (or forced to)
 	if (ok && (saveIgnoreRms || betterRMS))

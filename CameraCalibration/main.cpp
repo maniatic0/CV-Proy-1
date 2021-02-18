@@ -23,10 +23,7 @@ int main(int argc, char* argv[])
 		= "{help h usage ? |           | print this message            }"
 		"{@settings      |default.xml| input setting file            }";
 	cv::CommandLineParser parser(argc, argv, keys);
-	parser.about("This is a camera calibration sample.\n"
-		"Usage: camera_calibration [configuration_file -- default ./default.xml]\n"
-		"Near the sample file you'll find the configuration file, which has detailed help of "
-		"how to edit it. It may be any OpenCV supported file format XML/YAML.");
+	parser.about("Usage: camera_calibration [configuration_file -- default ./default.xml]\n");
 	if (!parser.check()) {
 		parser.printErrors();
 		return 0;
@@ -141,9 +138,6 @@ int main(int argc, char* argv[])
 	while (true)
 	{
 		dt = std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(std::chrono::high_resolution_clock::now() - prevFrame).count();
-
-
-		bool blinkOutput = false;
 
 		zBuffer.setColor(s.nextImage());
 		cv::Mat& view = zBuffer.getColor();
@@ -269,15 +263,13 @@ int main(int argc, char* argv[])
 			flip(view, view, 0);
 		}
 
+		// For blinking to mark if the frame was used
+		bool blinkOutput = false;
+
 		// Detected 2D corners
 		std::vector<cv::Point2f> pointBuf;
 
-		int chessBoardFlags = cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE;
-
-		if (!s.useFisheye) {
-			// fast check erroneously fails with high distortions like fisheye
-			chessBoardFlags |= cv::CALIB_CB_FAST_CHECK;
-		}
+		int chessBoardFlags = cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE | cv::CALIB_CB_FAST_CHECK;
 
 		// Find Chessboard
 		const bool found = cv::findChessboardCorners(view, s.boardSize, pointBuf, chessBoardFlags);
@@ -436,15 +428,7 @@ int main(int argc, char* argv[])
 		if (mode == CalibrationState::Calibrated && s.showUndistorsed)
 		{
 			cv::Mat temp = view.clone();
-			if (s.useFisheye)
-			{
-				cv::fisheye::undistortImage(temp, view, camera.CameraIntrisicMatrix(), camera.DistCoeffs());
-			}
-			else
-			{
-				cv::undistort(temp, view, camera.CameraIntrisicMatrix(), camera.DistCoeffs());
-			}
-
+			cv::undistort(temp, view, camera.CameraIntrisicMatrix(), camera.DistCoeffs());
 		}
 
 		// Input
@@ -477,23 +461,13 @@ int main(int argc, char* argv[])
 	// show undistorted images for image lists
 	if (s.inputType == Settings::InputType::Image_List && s.showUndistorsed)
 	{
+		// Create remapping functions
 		cv::Mat view, rview, map1, map2;
 
-		if (s.useFisheye)
-		{
-			cv::Mat newCamMat;
-			cv::fisheye::estimateNewCameraMatrixForUndistortRectify(camera.CameraIntrisicMatrix(), camera.DistCoeffs(), imageSize,
-				cv::Matx33d::eye(), newCamMat, 1);
-			cv::fisheye::initUndistortRectifyMap(camera.CameraIntrisicMatrix(), camera.DistCoeffs(), cv::Matx33d::eye(), newCamMat, imageSize,
-				CV_16SC2, map1, map2);
-		}
-		else
-		{
-			initUndistortRectifyMap(
-				camera.CameraIntrisicMatrix(), camera.DistCoeffs(), cv::Mat(),
-				getOptimalNewCameraMatrix(camera.CameraIntrisicMatrix(), camera.DistCoeffs(), imageSize, 1, imageSize, 0), imageSize,
-				CV_16SC2, map1, map2);
-		}
+		initUndistortRectifyMap(
+			camera.CameraIntrisicMatrix(), camera.DistCoeffs(), cv::Mat(),
+			getOptimalNewCameraMatrix(camera.CameraIntrisicMatrix(), camera.DistCoeffs(), imageSize, 1, imageSize, 0), imageSize,
+			CV_16SC2, map1, map2);
 
 		for (size_t i = 0; i < s.imageList.size(); i++)
 		{
