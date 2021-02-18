@@ -72,7 +72,7 @@ public:
 		return depthTemp;
 	}
 
-	// See cv::line. Note that pt1 and pt2 must contain their depthBuff in the last position
+	// See cv::line. Note that pt1 and pt2 must contain their depth in the last position
 	inline void drawLine(cv::Point3f pt1, cv::Point3f pt2, const cv::Scalar& color,
 		int thickness = 1, int lineType = cv::LINE_8, int shift = 0)
 	{
@@ -89,6 +89,7 @@ public:
 		drawTempBuffers();
 	}
 
+	// See cv::circle. Note that center must contain their depth in the last position
 	inline void drawCircle(cv::Point3f center, int radius,
 		const cv::Scalar& color, int thickness = 1,
 		int lineType = cv::LINE_8, int shift = 0)
