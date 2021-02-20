@@ -266,16 +266,18 @@ static void saveCameraParams(const Settings& s, const cv::Size& imageSize, const
 
 	cv::Mat rvec;
 	cv::Mat tvec;
-	float bestError = (float)totalAvgErr;
+	float bestError = std::numeric_limits<float>::infinity();
 	for (size_t i = 0; i < rvecs.size(); i++)
 	{
 		if (reprojErrs[i] < bestError)
 		{
-			rvec = rvecs[i];
-			tvec = tvecs[i];
+			rvecs[i].copyTo(rvec);
+			tvecs[i].copyTo(tvec);
+			bestError = reprojErrs[i];
 		}
 	}
 
+	fs << "BestError" << bestError;
 	fs << "RotationValues" << rvec;
 	fs << "TranslationValues" << tvec;
 #endif
