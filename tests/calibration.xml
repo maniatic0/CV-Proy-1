@@ -11,14 +11,14 @@
   <Square_Size>22</Square_Size>
 
   <!-- Width of the Chessboard in some user defined metric system (pixel, millimeter)-->
-  <!--<Grid_Width>175</Grid_Width>-->
+  <Grid_Width>175</Grid_Width>
   
   <!-- The input to use for calibration. 
 		To use an input camera -> give the ID of the camera, like "1"
 		To use an input video  -> give the path of the input video, like "/tmp/x.avi"
 		To use an image list   -> give the path to the XML or YAML file containing the list of the images, like "/tmp/circles_list.xml"
 		-->
-  <Input>"0"</Input>
+  <Input>"1"</Input>
   <!--  If true (non-zero) we flip the input images around the horizontal axis.-->
   <Input_FlipAroundHorizontalAxis>0</Input_FlipAroundHorizontalAxis>
   
@@ -55,15 +55,15 @@
   <!-- If true (non-zero) we show after calibration the undistorted images.-->
   <Show_UndistortedImage>1</Show_UndistortedImage>
   <!-- If true (non-zero) distortion coefficient k1 will be equals to zero.-->
-  <Fix_K1>1</Fix_K1>
+  <Fix_K1>0</Fix_K1>
   <!-- If true (non-zero) distortion coefficient k2 will be equals to zero.-->
-  <Fix_K2>1</Fix_K2>
+  <Fix_K2>0</Fix_K2>
   <!-- If true (non-zero) distortion coefficient k3 will be equals to zero.-->
-  <Fix_K3>1</Fix_K3>
+  <Fix_K3>0</Fix_K3>
   <!-- If true (non-zero) distortion coefficient k4 will be equals to zero.-->
-  <Fix_K4>1</Fix_K4>
+  <Fix_K4>0</Fix_K4>
   <!-- If true (non-zero) distortion coefficient k5 will be equals to zero.-->
-  <Fix_K5>1</Fix_K5>
+  <Fix_K5>0</Fix_K5>
 
   <!-- If true (non-zero) the Kalman Filter will be applied after the camera pose estimation.-->
   <Use_Kalman>1</Use_Kalman>

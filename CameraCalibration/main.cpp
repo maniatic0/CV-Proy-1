@@ -20,8 +20,9 @@
 int main(int argc, char* argv[])
 {
 	const cv::String keys
-		= "{help h usage ? |           | print this message            }"
-		"{@settings      |default.xml| input setting file            }";
+		=	"{help h usage ?	|           | print this message							}"
+			"{@settings			|default.xml| input setting file							}"
+			"{start |			| if to start capturing inmediately				}";
 	cv::CommandLineParser parser(argc, argv, keys);
 	parser.about("Usage: camera_calibration [configuration_file -- default ./default.xml]\n");
 	if (!parser.check()) {
@@ -53,6 +54,8 @@ int main(int argc, char* argv[])
 		fs.release(); // close Settings file
 	}
 
+	const bool startInmediately = parser.has("start");
+
 	int winSize = (int)(s.squareSize / 2.0f);
 
 	float grid_width = s.gridWidth;
@@ -77,7 +80,7 @@ int main(int argc, char* argv[])
 	bool atLeastOneSuccesss = false;
 	size_t preImagePointsSize = imagePoints.size();
 	cv::Size imageSize;
-	CalibrationState mode = s.inputType == Settings::InputType::Image_List ? CalibrationState::Capturing : CalibrationState::Detection;
+	CalibrationState mode = startInmediately || s.inputType == Settings::InputType::Image_List? CalibrationState::Capturing : CalibrationState::Detection;
 	clock_t prevTimestamp = 0;
 	std::chrono::time_point<std::chrono::high_resolution_clock> prevFrame = std::chrono::high_resolution_clock::now();
 	std::chrono::time_point<std::chrono::high_resolution_clock> startAnimTime = std::chrono::high_resolution_clock::now();
@@ -279,9 +282,12 @@ int main(int argc, char* argv[])
 			// If we found the chessboard
 
 			// chessboard found 2D corners can be improved with a solver. It requires everything in black and white
-			cv::Mat viewGray;
-			cvtColor(view, viewGray, cv::COLOR_BGR2GRAY);
-			cornerSubPix(viewGray, pointBuf, cv::Size(winSize, winSize), cv::Size(-1, -1), cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.0001));
+			if (!s.dontUserCornerFix)
+			{
+				cv::Mat viewGray;
+				cvtColor(view, viewGray, cv::COLOR_BGR2GRAY);
+				cornerSubPix(viewGray, pointBuf, cv::Size(winSize, winSize), cv::Size(-1, -1), cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.0001));
+			}
 
 			// Draw the corners.
 			drawChessboardCorners(view, s.boardSize, cv::Mat(pointBuf), found);

@@ -151,11 +151,11 @@ static bool calibrate(const Settings& s, const cv::Size& imageSize, cv::Mat& cam
 static void saveCameraParams(const Settings& s, const cv::Size& imageSize, const cv::Mat& cameraMatrix, const cv::Mat& distCoeffs,
 	const std::vector<cv::Mat>& rvecs, const std::vector<cv::Mat>& tvecs,
 	const std::vector<float>& reprojErrs, const std::vector<std::vector<cv::Point2f> >& imagePoints,
-	const double totalAvgErr, const std::vector<cv::Point3f>& newObjPoints)
+	const double totalAvgErr, const double rms, const std::vector<cv::Point3f>& newObjPoints)
 {
 	// From https://docs.opencv.org/4.2.0/d4/d94/tutorial_camera_calibration.html
 	cv::FileStorage fs(s.outputFileName, cv::FileStorage::WRITE);
-
+#if 0
 	time_t tm;
 	time(&tm);
 	struct tm t2;
@@ -258,6 +258,27 @@ static void saveCameraParams(const Settings& s, const cv::Size& imageSize, const
 	{
 		fs << "grid_points" << newObjPoints;
 	}
+#else
+	// Assigment 2
+	fs << "RMS" << rms;
+	fs << "CameraMatrix" << cameraMatrix;
+	fs << "DistortionCoeffs" << distCoeffs;
+
+	cv::Mat rvec;
+	cv::Mat tvec;
+	float bestError = (float)totalAvgErr;
+	for (size_t i = 0; i < rvecs.size(); i++)
+	{
+		if (reprojErrs[i] < bestError)
+		{
+			rvec = rvecs[i];
+			tvec = tvecs[i];
+		}
+	}
+
+	fs << "RotationValues" << rvec;
+	fs << "TranslationValues" << tvec;
+#endif
 }
 
 
@@ -284,7 +305,7 @@ CalibrationResult calibrateAndSave(const Settings& s, const cv::Size imageSize, 
 	if (ok && (saveIgnoreRms || betterRMS))
 	{
 		saveCameraParams(s, imageSize, cameraMatrix, distCoeffs, rvecs, tvecs, reprojErrs, imagePoints,
-			totalAvgErr, newObjPoints);
+			totalAvgErr, rms, newObjPoints);
 	}
 
 	if (!ok)

@@ -42,6 +42,7 @@ void Settings::write(cv::FileStorage& fs) const
 		<< "Never_Extrinsic_Guess" << neverUseExtrinsicGuess
 		<< "Suppress_Blinking" << suppressBlinking
 		<< "Restart_Attemps" << restartAttemps
+		<< "Stop_Corner_Fix" << dontUserCornerFix
 		<< "}";
 }
 
@@ -92,7 +93,15 @@ void Settings::read(const cv::FileNode& node)
 		suppressBlinking = false;
 	}
 	node["Restart_Attemps"] >> restartAttemps;
-
+	const cv::FileNode dontUserCornerFixNode = node["Stop_Corner_Fix"];
+	if (!dontUserCornerFixNode.empty())
+	{
+		dontUserCornerFixNode >> dontUserCornerFix;
+	}
+	else
+	{
+		dontUserCornerFix = false;
+	}
 	validate();
 }
 

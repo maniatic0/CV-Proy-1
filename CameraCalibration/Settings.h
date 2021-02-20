@@ -86,6 +86,7 @@ public:
 	bool neverUseExtrinsicGuess; // if never to use the extrinsic of last frame for the next frame
 	bool suppressBlinking;		 // If the blinking when capturing frames is to be suppresed
 	int restartAttemps;			 // The number of restarts to attempt before keeping a calibration value
+	bool dontUserCornerFix;		 // If to stop using cornerSubPix for improved detection
 
 	int cameraID;
 	std::vector<std::string> imageList;

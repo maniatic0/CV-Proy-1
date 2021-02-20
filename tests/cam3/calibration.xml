@@ -1,0 +1,80 @@
+<?xml version="1.0"?>
+<opencv_storage>
+<Settings>
+  <!-- Extended from https://docs.opencv.org/4.2.0/d4/d94/tutorial_camera_calibration.html -->
+
+  <!-- Number of inner corners per a item row and column. (square, circle) -->
+  <BoardSize_Width> 8</BoardSize_Width>
+  <BoardSize_Height>6</BoardSize_Height>
+  
+  <!-- The size of a square in some user defined metric system (pixel, millimeter)-->
+  <Square_Size>115</Square_Size>
+
+  <!-- Width of the Chessboard in some user defined metric system (pixel, millimeter)-->
+  <!--<Grid_Width>175</Grid_Width>-->
+  
+  <!-- The input to use for calibration. 
+		To use an input camera -> give the ID of the camera, like "1"
+		To use an input video  -> give the path of the input video, like "/tmp/x.avi"
+		To use an image list   -> give the path to the XML or YAML file containing the list of the images, like "/tmp/circles_list.xml"
+		-->
+  <Input>"./tests/cam3/intrinsics.avi"</Input>
+  <!--  If true (non-zero) we flip the input images around the horizontal axis.-->
+  <Input_FlipAroundHorizontalAxis>0</Input_FlipAroundHorizontalAxis>
+  
+  <!-- Time delay between frames in case of camera. -->
+  <Input_Delay>100</Input_Delay>	
+
+  <!-- Update Time delay between frames in case of camera. -->
+  <Update_Delay>10</Update_Delay>	
+  
+  <!-- How many frames to use, for calibration. -->
+  <Calibrate_NrOfFrameToUse>25</Calibrate_NrOfFrameToUse>
+
+  <!-- How many restarts to use, before settiling for a calibration. -->
+  <Restart_Attemps>20</Restart_Attemps>
+
+  <!-- Calibration Minimum Threshold. -->
+  <Acceptable_Threshold>0.001</Acceptable_Threshold>
+  <!-- Consider only fy as a free parameter, the ratio fx/fy stays the same as in the input cameraMatrix. 
+	   Use or not setting. 0 - False Non-Zero - True-->
+  <Calibrate_FixAspectRatio> 1 </Calibrate_FixAspectRatio>
+  <!-- If true (non-zero) tangential distortion coefficients  are set to zeros and stay zero.-->
+  <Calibrate_AssumeZeroTangentialDistortion>1</Calibrate_AssumeZeroTangentialDistortion>
+  <!-- If true (non-zero) the principal point is not changed during the global optimization.-->
+  <Calibrate_FixPrincipalPointAtTheCenter> 1 </Calibrate_FixPrincipalPointAtTheCenter>
+  
+  <!-- The name of the output log file. -->
+  <Write_outputFileName>"./tests/cam3/intrinsics.xml"</Write_outputFileName>
+  <!-- If true (non-zero) we write to the output file the feature points.-->
+  <Write_DetectedFeaturePoints>1</Write_DetectedFeaturePoints>
+  <!-- If true (non-zero) we write to the output file the extrinsic camera parameters.-->
+  <Write_extrinsicParameters>1</Write_extrinsicParameters>
+  <!-- If true (non-zero) we write to the output file the refined 3D target grid points.-->
+  <Write_gridPoints>1</Write_gridPoints>
+  <!-- If true (non-zero) we show after calibration the undistorted images.-->
+  <Show_UndistortedImage>1</Show_UndistortedImage>
+  <!-- If true (non-zero) distortion coefficient k1 will be equals to zero.-->
+  <Fix_K1>0</Fix_K1>
+  <!-- If true (non-zero) distortion coefficient k2 will be equals to zero.-->
+  <Fix_K2>0</Fix_K2>
+  <!-- If true (non-zero) distortion coefficient k3 will be equals to zero.-->
+  <Fix_K3>0</Fix_K3>
+  <!-- If true (non-zero) distortion coefficient k4 will be equals to zero.-->
+  <Fix_K4>0</Fix_K4>
+  <!-- If true (non-zero) distortion coefficient k5 will be equals to zero.-->
+  <Fix_K5>0</Fix_K5>
+
+  <!-- If true (non-zero) the Kalman Filter will be applied after the camera pose estimation.-->
+  <Use_Kalman>1</Use_Kalman>
+
+  <!-- If true (non-zero) the PnP will never use the previous extrinsic values for a guess for the camera pose estimation.-->
+  <Never_Extrinsic_Guess>0</Never_Extrinsic_Guess>
+  
+  <!-- If true (non-zero) no blinking when samples are taken will be done.-->
+  <Suppress_Blinking>1</Suppress_Blinking>
+
+  <!-- If true (non-zero) corner improvement will not happen.-->
+  <Stop_Corner_Fix>1</Stop_Corner_Fix>
+</Settings>
+</opencv_storage>
